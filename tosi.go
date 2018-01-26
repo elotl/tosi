@@ -23,6 +23,7 @@ const (
 
 func main() {
 	repo := flag.String("repo", "", "Docker repository to pull")
+	reference := flag.String("reference", "latest", "Image reference")
 	url := flag.String("url", "https://registry-1.docker.io/", "Docker registry URL to use")
 	username := flag.String("username", "", "Username for registry login")
 	password := flag.String("password", "", "Password for registry login")
@@ -52,7 +53,7 @@ func main() {
 		glog.Fatalf("Error connecting to registry: %v", err)
 	}
 
-	manifest, err := reg.ManifestV2(*repo, "latest")
+	manifest, err := reg.ManifestV2(*repo, *reference)
 	if err != nil {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
