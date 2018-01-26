@@ -160,6 +160,7 @@ func createPackage(pkgdir, repo, rootfs, pkgname string) (string, error) {
 	tmpname := filepath.Join(filepath.Dir(pkgname), "."+filepath.Base(pkgname))
 	file, err := os.Create(tmpname)
 	if err != nil {
+		glog.Errorf("Error creating temporary package file %s: %v", tmpname, err)
 		return "", err
 	}
 	defer os.Remove(tmpname)
@@ -175,10 +176,14 @@ func createPackage(pkgdir, repo, rootfs, pkgname string) (string, error) {
 		return addPathToTar(tw, path, info, rootfs)
 	})
 	if err != nil {
+		glog.Errorf("Error adding rootfs contents to package %s: %v",
+			pkgname, err)
 		return "", err
 	}
 	err = os.Rename(tmpname, pkgname)
 	if err != nil {
+		glog.Errorf("Error renaming package file %s -> %s: %v",
+			tmpname, pkgname, err)
 		return "", err
 	}
 	return pkgname, nil
