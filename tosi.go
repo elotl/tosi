@@ -21,56 +21,56 @@ const (
 	TAR_BASEDIR = "ROOTFS"
 )
 
-var repo string = "library/ruby"
-var url string = "https://registry-1.docker.io/"
-var username string = "" // anonymous
-var password string = "" // anonymous
-var workdir string = "/tmp/docker2milpa"
-
 func main() {
-	//  go build -ldflags "-X main.buildDate=`date -u +.%Y%m%d.%H%M%S`"
-	_ = flag.Bool("build", false, "display build date")
-
+	repo := flag.String("repo", "", "Docker repository to pull")
+	url := flag.String("url", "https://registry-1.docker.io/", "Docker registry URL to use")
+	username := flag.String("username", "", "Username for registry login")
+	password := flag.String("password", "", "Password for registry login")
+	workdir := flag.String("workdir", "/tmp/tosi", "Working directory, used for caching")
+	out := flag.String("out", "", "Milpa package file to create")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
-	glog.Infof("Saving layers to %s", workdir)
+	if *repo == "" {
+		glog.Fatalf("Please specify repo")
+	}
 
-	layerdir := filepath.Join(workdir, "layers")
+	layerdir := filepath.Join(*workdir, "layers")
 	err := os.MkdirAll(layerdir, 0700)
 	if err != nil {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
 
-	pkgdir := filepath.Join(workdir, "packages")
+	pkgdir := filepath.Join(*workdir, "packages")
 	err = os.MkdirAll(pkgdir, 0700)
 	if err != nil {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
 
-	reg, err := registry.New(url, username, password)
+	reg, err := registry.New(*url, *username, *password)
 	if err != nil {
 		glog.Fatalf("Error connecting to registry: %v", err)
 	}
 
-	manifest, err := reg.ManifestV2(repo, "latest")
+	manifest, err := reg.ManifestV2(*repo, "latest")
 	if err != nil {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
 
 	files := make([]string, 0)
 	for _, layer := range manifest.Layers {
-		name, err := saveLayer(reg, repo, layerdir, layer)
+		name, err := saveLayer(reg, *repo, layerdir, layer)
 		if err != nil {
 			glog.Fatalf("Error downloading layer %v: %v", layer, err)
 		}
 		files = append(files, name)
 	}
 
-	rootfs, err := createRootfs(pkgdir, repo)
+	rootfs, err := createRootfs(pkgdir, *repo)
 	if err != nil {
-		glog.Fatalf("Error creating ROOTFS for %s in %s", repo, pkgdir)
+		glog.Fatalf("Error creating ROOTFS for %s in %s", *repo, pkgdir)
 	}
+	defer os.RemoveAll(rootfs)
 
 	var whiteouts []string
 	for _, f := range files {
@@ -89,11 +89,11 @@ func main() {
 		glog.Fatalf("Error processing whiteouts in %s", rootfs)
 	}
 
-	pkg, err := createPackage(pkgdir, repo, rootfs)
+	pkgpath, err := createPackage(pkgdir, *repo, rootfs, *out)
 	if err != nil {
 		glog.Fatalf("Error creating package from %s: %v", rootfs, err)
 	}
-	glog.Infof("Package is available at %s", pkg)
+	glog.Infof("Package is available at %s", pkgpath)
 
 	// Done!
 	os.Exit(0)
@@ -152,13 +152,17 @@ func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) 
 	return nil
 }
 
-func createPackage(pkgdir, repo, rootfs string) (string, error) {
-	pkgname := strings.Replace(repo, "/", "-", -1)
-	pkgname = strings.Replace(pkgname, ":", "-", -1) + "-pkg.tar.gz"
-	file, err := os.Create(pkgname)
+func createPackage(pkgdir, repo, rootfs, pkgname string) (string, error) {
+	if pkgname == "" {
+		pkgname = strings.Replace(repo, "/", "-", -1)
+		pkgname = strings.Replace(pkgname, ":", "-", -1) + "-pkg.tar.gz"
+	}
+	tmpname := filepath.Join(filepath.Dir(pkgname), "."+filepath.Base(pkgname))
+	file, err := os.Create(tmpname)
 	if err != nil {
 		return "", err
 	}
+	defer os.Remove(tmpname)
 	defer file.Close()
 	gw := gzip.NewWriter(file)
 	defer gw.Close()
@@ -170,6 +174,10 @@ func createPackage(pkgdir, repo, rootfs string) (string, error) {
 		}
 		return addPathToTar(tw, path, info, rootfs)
 	})
+	if err != nil {
+		return "", err
+	}
+	err = os.Rename(tmpname, pkgname)
 	if err != nil {
 		return "", err
 	}
