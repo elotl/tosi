@@ -107,18 +107,13 @@ func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) 
 	basedir := filepath.Dir(rootfs)
 	rlen := len(rootfs)
 	blen := len(basedir)
-	file, err := os.Open(path)
-	if err != nil {
-		glog.Errorf("Opening %s: %v", path, err)
-		return err
-	}
-	defer file.Close()
 	name := path[blen:]
 	if len(name) > 0 && name[0] == filepath.Separator {
 		name = name[1:]
 	}
 	lname := ""
 	isLink := false
+	var err error
 	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
 		isLink = true
 		lname, err = os.Readlink(path)
@@ -146,6 +141,12 @@ func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) 
 	if info.IsDir() || isLink {
 		return nil
 	}
+	file, err := os.Open(path)
+	if err != nil {
+		glog.Errorf("Opening %s: %v", path, err)
+		return err
+	}
+	defer file.Close()
 	if _, err = io.Copy(tw, file); err != nil {
 		glog.Errorf("Writing %s data into tarball: %v", path, err)
 		return err
