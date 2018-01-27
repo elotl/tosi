@@ -42,11 +42,17 @@ func main() {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
 
-	pkgdir := filepath.Join(*workdir, "packages")
-	err = os.MkdirAll(pkgdir, 0700)
+	pkgbasedir := filepath.Join(*workdir, "packages")
+	pkgdir, err := createPackageDir(pkgbasedir, *repo, *reference)
 	if err != nil {
-		glog.Fatalf("Error retrieving manifest: %v", err)
+		glog.Fatalf("Error creating package directory for %s in %s: %v",
+			*repo, pkgbasedir, err)
 	}
+	rootfs, err := createRootfs(pkgdir)
+	if err != nil {
+		glog.Fatalf("Error creating ROOTFS for %s in %s", *repo, pkgdir)
+	}
+	defer os.RemoveAll(rootfs)
 
 	reg, err := registry.New(*url, *username, *password)
 	if err != nil {
@@ -66,12 +72,6 @@ func main() {
 		}
 		files = append(files, name)
 	}
-
-	rootfs, err := createRootfs(pkgdir, *repo)
-	if err != nil {
-		glog.Fatalf("Error creating ROOTFS for %s in %s", *repo, pkgdir)
-	}
-	defer os.RemoveAll(rootfs)
 
 	var whiteouts []string
 	for _, f := range files {
@@ -154,12 +154,13 @@ func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) 
 	return nil
 }
 
-func createPackage(pkgdir, repo, rootfs, pkgname string) (string, error) {
-	if pkgname == "" {
-		pkgname = strings.Replace(repo, "/", "-", -1)
-		pkgname = strings.Replace(pkgname, ":", "-", -1) + "-pkg.tar.gz"
+func createPackage(pkgdir, repo, rootfs, pkgpath string) (string, error) {
+	if pkgpath == "" {
+		name := strings.Replace(repo, "/", "-", -1)
+		name = strings.Replace(name, ":", "-", -1) + "-pkg.tar.gz"
+		pkgpath = filepath.Join(pkgdir, name)
 	}
-	tmpname := filepath.Join(filepath.Dir(pkgname), "."+filepath.Base(pkgname))
+	tmpname := filepath.Join(filepath.Dir(pkgpath), "."+filepath.Base(pkgpath))
 	file, err := os.Create(tmpname)
 	if err != nil {
 		glog.Errorf("Error creating temporary package file %s: %v", tmpname, err)
@@ -179,22 +180,32 @@ func createPackage(pkgdir, repo, rootfs, pkgname string) (string, error) {
 	})
 	if err != nil {
 		glog.Errorf("Error adding rootfs contents to package %s: %v",
-			pkgname, err)
+			pkgpath, err)
 		return "", err
 	}
-	err = os.Rename(tmpname, pkgname)
+	err = os.Rename(tmpname, pkgpath)
 	if err != nil {
 		glog.Errorf("Error renaming package file %s -> %s: %v",
-			tmpname, pkgname, err)
+			tmpname, pkgpath, err)
 		return "", err
 	}
-	return pkgname, nil
+	return pkgpath, nil
 }
 
-func createRootfs(pkgdir, repo string) (string, error) {
+func createPackageDir(basedir, repo, ref string) (string, error) {
 	pkgname := strings.Replace(repo, "/", "-", -1)
 	pkgname = strings.Replace(pkgname, ":", "-", -1)
-	rootfspath := filepath.Join(pkgdir, pkgname, "ROOTFS")
+	path := filepath.Join(basedir, pkgname, ref)
+	err := os.MkdirAll(path, 0700)
+	if err != nil {
+		glog.Errorf("Creating %s: %v", path, err)
+		return "", err
+	}
+	return path, nil
+}
+
+func createRootfs(pkgdir string) (string, error) {
+	rootfspath := filepath.Join(pkgdir, "ROOTFS")
 	err := os.RemoveAll(rootfspath)
 	if err != nil {
 		glog.Errorf("Removing %s: %v", rootfspath, err)
