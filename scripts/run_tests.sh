@@ -22,8 +22,10 @@ compare_rootfs() {
     popd
 }
 
-./tosi -repo library/alpine -reference 3.6 >> /tmp/tosi.log 2>&1
+echo -n > /tmp/tosi.log
+
+./tosi -image library/alpine:3.6 >> /tmp/tosi.log 2>&1
 compare_rootfs "/tmp/tosi/packages/library-alpine/3.6/ROOTFS"
 
-./tosi -repo library/ruby -reference latest >> /tmp/tosi.log 2>&1
+./tosi -image library/ruby >> /tmp/tosi.log 2>&1
 compare_rootfs "/tmp/tosi/packages/library-ruby/latest/ROOTFS"
