@@ -11,7 +11,7 @@ go test ./...
 compare_rootfs() {
     rootfs="$1"
     pushd "$rootfs"
-    find . -exec ls -d -l {} \; | awk '{ s = ""; for (i = 9; i <= NF; i++) s = s $i " "; print s }' | sed "s#$rootfs##g" | sort > /tmp/files1.txt
+    find . -exec ls -d -l {} \; | awk '{ s = ""; for (i = 9; i <= NF; i++) s = s $i " "; print s }' | sort > /tmp/files1.txt
     cd ..
     mkdir -p check
     cd check
