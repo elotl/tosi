@@ -75,7 +75,7 @@ func main() {
 
 	var whiteouts []string
 	for _, f := range files {
-		// All layers (which are actually .tar.gz files) are extracted into a
+		// All layers (which are actually .tar.gz files) are extracted into our
 		// ROOTFS directory.
 		wo, err := extractLayerToDir(f, rootfs)
 		if err != nil {
