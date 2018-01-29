@@ -22,8 +22,7 @@ const (
 )
 
 func main() {
-	repo := flag.String("repo", "", "Docker repository to pull")
-	reference := flag.String("reference", "latest", "Image reference")
+	image := flag.String("image", "", "Docker repository to pull")
 	url := flag.String("url", "https://registry-1.docker.io/", "Docker registry URL to use")
 	username := flag.String("username", "", "Username for registry login")
 	password := flag.String("password", "", "Password for registry login")
@@ -33,8 +32,19 @@ func main() {
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
-	if *repo == "" {
-		glog.Fatalf("Please specify repo")
+	if *image == "" {
+		glog.Fatalf("Please specify image to pull")
+	}
+
+	repo := *image
+	reference := "latest" // Default reference/tag.
+	if strings.Contains(*image, ":") {
+		parts := strings.Split(*image, ":")
+		if len(parts) != 2 {
+			glog.Fatalf("Invalid image %s", *image)
+		}
+		repo = parts[0]
+		reference = parts[1]
 	}
 
 	layerdir := filepath.Join(*workdir, "layers")
@@ -44,10 +54,10 @@ func main() {
 	}
 
 	pkgbasedir := filepath.Join(*workdir, "packages")
-	pkgdir, err := createPackageDir(pkgbasedir, *repo, *reference)
+	pkgdir, err := createPackageDir(pkgbasedir, *image, reference)
 	if err != nil {
 		glog.Fatalf("Error creating package directory for %s in %s: %v",
-			*repo, pkgbasedir, err)
+			*image, pkgbasedir, err)
 	}
 
 	rootfs := *extractto
@@ -55,7 +65,7 @@ func main() {
 		// Create a temporary ROOTFS directory for extracting the image.
 		rootfs, err = createRootfs(pkgdir)
 		if err != nil {
-			glog.Fatalf("Error creating ROOTFS for %s in %s", *repo, pkgdir)
+			glog.Fatalf("Error creating ROOTFS for %s in %s", *image, pkgdir)
 		}
 		defer os.RemoveAll(rootfs)
 	} else {
@@ -63,11 +73,11 @@ func main() {
 		// already exists.
 		err = os.RemoveAll(rootfs)
 		if err != nil {
-			glog.Fatalf("Error removing %s for %s", rootfs, *repo)
+			glog.Fatalf("Error removing %s for %s", rootfs, *image)
 		}
 		err = os.MkdirAll(rootfs, 0700)
 		if err != nil {
-			glog.Fatalf("Error creating %s for %s", rootfs, *repo)
+			glog.Fatalf("Error creating %s for %s", rootfs, *image)
 		}
 	}
 
@@ -76,14 +86,14 @@ func main() {
 		glog.Fatalf("Error connecting to registry: %v", err)
 	}
 
-	manifest, err := reg.ManifestV2(*repo, *reference)
+	manifest, err := reg.ManifestV2(repo, reference)
 	if err != nil {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
 
 	files := make([]string, 0)
 	for _, layer := range manifest.Layers {
-		name, err := saveLayer(reg, *repo, layerdir, layer)
+		name, err := saveLayer(reg, repo, layerdir, layer)
 		if err != nil {
 			glog.Fatalf("Error downloading layer %v: %v", layer, err)
 		}
@@ -109,7 +119,7 @@ func main() {
 
 	if *extractto == "" {
 		// Create Milpa package.
-		pkgpath, err := createPackage(pkgdir, *repo, rootfs, *out)
+		pkgpath, err := createPackage(pkgdir, repo, rootfs, *out)
 		if err != nil {
 			glog.Fatalf("Error creating package from %s: %v", rootfs, err)
 		}
