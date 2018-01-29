@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	TAR_BASEDIR = "ROOTFS"
+	ROOTFS_BASEDIR = "ROOTFS"
 )
 
 func main() {
@@ -205,7 +205,7 @@ func createPackageDir(basedir, repo, ref string) (string, error) {
 }
 
 func createRootfs(pkgdir string) (string, error) {
-	rootfspath := filepath.Join(pkgdir, "ROOTFS")
+	rootfspath := filepath.Join(pkgdir, ROOTFS_BASEDIR)
 	err := os.RemoveAll(rootfspath)
 	if err != nil {
 		glog.Errorf("Removing %s: %v", rootfspath, err)
