@@ -290,9 +290,9 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 			ioutil.WriteFile(name, data, os.FileMode(header.Mode))
 		case tar.TypeLink, tar.TypeSymlink:
 			linkname := header.Linkname
-			// Preserve relative symlinks (pointing to a file/directory in the
-			// same directory or starting with "../").
-			if header.Typeflag == tar.TypeLink || filepath.IsAbs(linkname) {
+			// Hard links will need a valid absolute path. Update them,
+			// relative to destdir.
+			if header.Typeflag == tar.TypeLink {
 				linkname = filepath.Join(destdir, linkname)
 			}
 			// Links might point to files or directories that have not been
