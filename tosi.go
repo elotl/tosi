@@ -29,6 +29,7 @@ func main() {
 	password := flag.String("password", "", "Password for registry login")
 	workdir := flag.String("workdir", "/tmp/tosi", "Working directory, used for caching")
 	out := flag.String("out", "", "Milpa package file to create")
+	extractto := flag.String("extractto", "", "Only extract image to a directory, don't create package file")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
@@ -48,11 +49,27 @@ func main() {
 		glog.Fatalf("Error creating package directory for %s in %s: %v",
 			*repo, pkgbasedir, err)
 	}
-	rootfs, err := createRootfs(pkgdir)
-	if err != nil {
-		glog.Fatalf("Error creating ROOTFS for %s in %s", *repo, pkgdir)
+
+	rootfs := *extractto
+	if rootfs == "" {
+		// Create a temporary ROOTFS directory for extracting the image.
+		rootfs, err = createRootfs(pkgdir)
+		if err != nil {
+			glog.Fatalf("Error creating ROOTFS for %s in %s", *repo, pkgdir)
+		}
+		defer os.RemoveAll(rootfs)
+	} else {
+		// Extract into the specified directory, removing it first in case it
+		// already exists.
+		err = os.RemoveAll(rootfs)
+		if err != nil {
+			glog.Fatalf("Error removing %s for %s", rootfs, *repo)
+		}
+		err = os.MkdirAll(rootfs, 0700)
+		if err != nil {
+			glog.Fatalf("Error creating %s for %s", rootfs, *repo)
+		}
 	}
-	defer os.RemoveAll(rootfs)
 
 	reg, err := registry.New(*url, *username, *password)
 	if err != nil {
@@ -90,11 +107,16 @@ func main() {
 		glog.Fatalf("Error processing whiteouts in %s", rootfs)
 	}
 
-	pkgpath, err := createPackage(pkgdir, *repo, rootfs, *out)
-	if err != nil {
-		glog.Fatalf("Error creating package from %s: %v", rootfs, err)
+	if *extractto == "" {
+		// Create Milpa package.
+		pkgpath, err := createPackage(pkgdir, *repo, rootfs, *out)
+		if err != nil {
+			glog.Fatalf("Error creating package from %s: %v", rootfs, err)
+		}
+		glog.Infof("Package is available at %s", pkgpath)
+	} else {
+		glog.Infof("Image has been extracted into %s", rootfs)
 	}
-	glog.Infof("Package is available at %s", pkgpath)
 
 	// Done!
 	os.Exit(0)
