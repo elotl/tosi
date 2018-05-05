@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -29,6 +30,8 @@ func main() {
 	workdir := flag.String("workdir", "/tmp/tosi", "Working directory, used for caching")
 	out := flag.String("out", "", "Milpa package file to create")
 	extractto := flag.String("extractto", "", "Only extract image to a directory, don't create package file")
+	saveentrypoint := flag.String("saveentrypoint", "", "Save entrypoint of image to file as JSON array")
+	savecmd := flag.String("savecmd", "", "Save cmd of image to file as JSON array")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
@@ -50,7 +53,13 @@ func main() {
 	layerdir := filepath.Join(*workdir, "layers")
 	err := os.MkdirAll(layerdir, 0700)
 	if err != nil {
-		glog.Fatalf("Error retrieving manifest: %v", err)
+		glog.Fatalf("Error creating %s: %v", layerdir, err)
+	}
+
+	configdir := filepath.Join(*workdir, "configs")
+	err = os.MkdirAll(configdir, 0700)
+	if err != nil {
+		glog.Fatalf("Error creating %s: %v", configdir, err)
 	}
 
 	pkgbasedir := filepath.Join(*workdir, "packages")
@@ -91,9 +100,11 @@ func main() {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
 
+	config, err := saveBlob(reg, repo, configdir, manifest.Config)
+
 	files := make([]string, 0)
 	for _, layer := range manifest.Layers {
-		name, err := saveLayer(reg, repo, layerdir, layer)
+		name, err := saveBlob(reg, repo, layerdir, layer)
 		if err != nil {
 			glog.Fatalf("Error downloading layer %v: %v", layer, err)
 		}
@@ -128,8 +139,53 @@ func main() {
 		glog.Infof("Image has been extracted into %s", rootfs)
 	}
 
+	entrypoint, cmd, err := getEntrypointAndCmd(config)
+	if err != nil {
+		glog.Fatalf("Error reading config from %s: %v", config, err)
+	}
+
+	if *saveentrypoint != "" {
+		err = saveAsJson(entrypoint, *saveentrypoint)
+	}
+	if *savecmd != "" {
+		err = saveAsJson(cmd, *savecmd)
+	}
+
 	// Done!
 	os.Exit(0)
+}
+
+func saveAsJson(i interface{}, filename string) error {
+	data, err := json.Marshal(i)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(filename, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func getEntrypointAndCmd(configfile string) ([]string, []string, error) {
+	configdata, err := ioutil.ReadFile(configfile)
+	if err != nil {
+		return nil, nil, err
+	}
+	type Config struct {
+		Entrypoint []string `json:"Entrypoint"`
+		Cmd        []string `json:"Cmd"`
+	}
+	type ImageConfig struct {
+		Config Config `json:"config"`
+	}
+	ic := ImageConfig{}
+	err = json.Unmarshal(configdata, &ic)
+	if err != nil {
+		return nil, nil, err
+	}
+	glog.Infof("image config: %+v", ic)
+	return ic.Config.Entrypoint, ic.Config.Cmd, nil
 }
 
 func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) error {
@@ -421,21 +477,21 @@ func isLayerValid(name string, dgst digest.Digest) bool {
 	return verifier.Verified()
 }
 
-func saveLayer(reg *registry.Registry, repo, layerdir string, layer distribution.Descriptor) (string, error) {
-	tmpname := filepath.Join(layerdir, "."+layer.Digest.String())
+func saveBlob(reg *registry.Registry, repo, dir string, desc distribution.Descriptor) (string, error) {
+	tmpname := filepath.Join(dir, "."+desc.Digest.String())
 	defer os.Remove(tmpname)
-	name := filepath.Join(layerdir, layer.Digest.String())
-	// Check if we already have the layer downloaded.
+	name := filepath.Join(dir, desc.Digest.String())
+	// Check if we already have the blob downloaded.
 	if _, err := os.Stat(name); err == nil {
-		// Layer file already exists. Check its hash.
-		if isLayerValid(name, layer.Digest) {
-			glog.Infof("Repo %s layer %s already exists and valid", repo, name)
+		// Blob file already exists. Check its hash.
+		if isLayerValid(name, desc.Digest) {
+			glog.Infof("Repo %s blob %s already exists and valid", repo, name)
 			return name, nil
 		}
 	}
 	os.Remove(name)
-	glog.Infof("Saving repo %s layer %s", repo, name)
-	reader, err := reg.DownloadLayer(repo, layer.Digest)
+	glog.Infof("Saving repo %s blob %s", repo, name)
+	reader, err := reg.DownloadLayer(repo, desc.Digest)
 	if err != nil {
 		return "", err
 	}
@@ -445,16 +501,16 @@ func saveLayer(reg *registry.Registry, repo, layerdir string, layer distribution
 		return "", err
 	}
 	defer f.Close()
-	verifier := layer.Digest.Verifier()
+	verifier := desc.Digest.Verifier()
 	writer := io.MultiWriter(f, verifier)
 	n, err := io.Copy(writer, reader)
 	if err != nil {
 		return "", err
 	}
 	f.Close()
-	if n != layer.Size {
+	if n != desc.Size {
 		return "", fmt.Errorf("Error saving %s: wrote only %d/%d bytes",
-			name, n, layer.Size)
+			name, n, desc.Size)
 	}
 	if !verifier.Verified() {
 		return "", fmt.Errorf("Error saving %s: verifier failed", name)
