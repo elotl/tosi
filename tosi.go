@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/docker/distribution"
 	"github.com/golang/glog"
@@ -22,6 +23,48 @@ const (
 	ROOTFS_BASEDIR = "ROOTFS"
 )
 
+// This is part of the config of docker images.
+type HealthConfig struct {
+	Test        []string      `json:",omitempty"`
+	Interval    time.Duration `json:",omitempty"`
+	Timeout     time.Duration `json:",omitempty"`
+	StartPeriod time.Duration `json:",omitempty"`
+	Retries     int           `json:",omitempty"`
+}
+
+// This is the main config struct for docker images.
+type Config struct {
+	Hostname        string
+	Domainname      string
+	User            string
+	AttachStdin     bool
+	AttachStdout    bool
+	AttachStderr    bool
+	ExposedPorts    map[string]struct{} `json:",omitempty"`
+	Tty             bool
+	OpenStdin       bool
+	StdinOnce       bool
+	Env             []string
+	Cmd             []string
+	Healthcheck     *HealthConfig `json:",omitempty"`
+	ArgsEscaped     bool          `json:",omitempty"`
+	Image           string
+	Volumes         map[string]struct{}
+	WorkingDir      string
+	Entrypoint      []string
+	NetworkDisabled bool   `json:",omitempty"`
+	MacAddress      string `json:",omitempty"`
+	OnBuild         []string
+	Labels          map[string]string
+	StopSignal      string   `json:",omitempty"`
+	StopTimeout     *int     `json:",omitempty"`
+	Shell           []string `json:",omitempty"`
+}
+
+type ImageConfig struct {
+	Config Config `json:"config"`
+}
+
 func main() {
 	image := flag.String("image", "", "Docker repository to pull")
 	url := flag.String("url", "https://registry-1.docker.io/", "Docker registry URL to use")
@@ -30,8 +73,7 @@ func main() {
 	workdir := flag.String("workdir", "/tmp/tosi", "Working directory, used for caching")
 	out := flag.String("out", "", "Milpa package file to create")
 	extractto := flag.String("extractto", "", "Only extract image to a directory, don't create package file")
-	saveentrypoint := flag.String("saveentrypoint", "", "Save entrypoint of image to file as JSON array")
-	savecmd := flag.String("savecmd", "", "Save cmd of image to file as JSON array")
+	saveconfig := flag.String("saveconfig", "", "Save config of image to file as JSON")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
@@ -139,16 +181,13 @@ func main() {
 		glog.Infof("Image has been extracted into %s", rootfs)
 	}
 
-	entrypoint, cmd, err := getEntrypointAndCmd(config)
+	dockerconf, err := getConfig(config)
 	if err != nil {
 		glog.Fatalf("Error reading config from %s: %v", config, err)
 	}
 
-	if *saveentrypoint != "" {
-		err = saveAsJson(entrypoint, *saveentrypoint)
-	}
-	if *savecmd != "" {
-		err = saveAsJson(cmd, *savecmd)
+	if *saveconfig != "" {
+		err = saveAsJson(dockerconf, *saveconfig)
 	}
 
 	// Done!
@@ -167,25 +206,18 @@ func saveAsJson(i interface{}, filename string) error {
 	return nil
 }
 
-func getEntrypointAndCmd(configfile string) ([]string, []string, error) {
+func getConfig(configfile string) (*Config, error) {
 	configdata, err := ioutil.ReadFile(configfile)
 	if err != nil {
-		return nil, nil, err
-	}
-	type Config struct {
-		Entrypoint []string `json:"Entrypoint"`
-		Cmd        []string `json:"Cmd"`
-	}
-	type ImageConfig struct {
-		Config Config `json:"config"`
+		return nil, err
 	}
 	ic := ImageConfig{}
 	err = json.Unmarshal(configdata, &ic)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	glog.Infof("image config: %+v", ic)
-	return ic.Config.Entrypoint, ic.Config.Cmd, nil
+	return &ic.Config, nil
 }
 
 func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) error {
