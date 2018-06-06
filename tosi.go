@@ -375,24 +375,24 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 		}
 
 		name := filepath.Join(destdir, header.Name)
+		basename := filepath.Base(name)
+		if basename == ".wh..wh..opq" {
+			// Whiteout opaque directory. We don't need to do anything with
+			// it (only meaningful for layered filesystems).
+			continue
+		}
+		if len(basename) > 4 && basename[:4] == ".wh." {
+			// Reconstruct path without the .wh. prefix in the filename.
+			path := filepath.Join(filepath.Dir(name), basename[4:])
+			glog.Infof("Found whiteout %s for %s", name, path)
+			whiteouts = append(whiteouts, path)
+			continue
+		}
 
 		switch header.Typeflag {
 		case tar.TypeDir: // directory
 			os.Mkdir(name, os.FileMode(header.Mode))
 		case tar.TypeReg: // regular file
-			basename := filepath.Base(name)
-			if basename == ".wh..wh..opq" {
-				// Whiteout opaque directory. We don't need to do anything with
-				// it (only meaningful for layered filesystems).
-				continue
-			}
-			if len(basename) > 4 && basename[:4] == ".wh." {
-				// Reconstruct path without the .wh. prefix in the filename.
-				path := filepath.Join(filepath.Dir(name), basename[4:])
-				glog.Infof("Found whiteout %s for %s", name, path)
-				whiteouts = append(whiteouts, path)
-				continue
-			}
 			data := make([]byte, header.Size)
 			read_so_far := int64(0)
 			for read_so_far < header.Size {
@@ -421,8 +421,9 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 			links = append(links, Link{linkname, name, header.Typeflag, os.FileMode(header.Mode), header.Uid, header.Gid})
 			continue
 		default:
-			glog.Warningf("Unknown type while extracting layer %s: %d",
-				filename, header.Typeflag)
+			glog.Warningf(
+				"Ignoring unknown type while extracting %s (layer %s): %d",
+				name, filename, header.Typeflag)
 			continue
 		}
 		err = os.Chown(name, header.Uid, header.Gid)
