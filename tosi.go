@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
+	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	"github.com/golang/glog"
 	"github.com/heroku/docker-registry-client/registry"
 	"github.com/opencontainers/go-digest"
@@ -139,15 +140,35 @@ func main() {
 		glog.Fatalf("Error connecting to registry: %v", err)
 	}
 
+	var config string
+	var refs []distribution.Descriptor
 	manifest, err := reg.ManifestV2(repo, reference)
 	if err != nil {
 		glog.Fatalf("Error retrieving manifest: %v", err)
 	}
-
-	config, err := saveBlob(reg, repo, configdir, manifest.Config)
+	if manifest.Versioned.SchemaVersion == 1 {
+		// Old, v1 manifest.
+		manifestv1, err := reg.Manifest(repo, reference)
+		if err != nil {
+			glog.Fatalf("Error retrieving manifest: %v", err)
+		}
+		config, err = saveV1Config(configdir, repo, reference, manifestv1)
+		if err != nil {
+			glog.Fatalf("Error retrieving config: %v", err)
+		}
+		refs = manifestv1.References()
+	} else if manifest.Versioned.SchemaVersion == 2 {
+		config, err = saveBlob(reg, repo, configdir, manifest.Config)
+		if err != nil {
+			glog.Fatalf("Error retrieving config: %v", err)
+		}
+		refs = manifest.Layers
+	} else {
+		glog.Fatalf("Invalid manifest %+v", manifest)
+	}
 
 	files := make([]string, 0)
-	for _, layer := range manifest.Layers {
+	for _, layer := range refs {
 		name, err := saveBlob(reg, repo, layerdir, layer)
 		if err != nil {
 			glog.Fatalf("Error downloading layer %v: %v", layer, err)
@@ -226,6 +247,27 @@ func newRegistryClient(registryUrl, username, password string) (*registry.Regist
 	}
 
 	return registry, nil
+}
+
+func saveV1Config(dir, repo, reference string, manifest *manifestV1.SignedManifest) (string, error) {
+	if len(manifest.History) < 1 {
+		return "", fmt.Errorf("V1 manifest with no history")
+	}
+	v1comp := manifest.History[0].V1Compatibility
+	name := filepath.Join(
+		dir,
+		fmt.Sprintf("%s:%s", strings.Replace(repo, "/", "_", -1), reference))
+	// Check if we already have the config downloaded.
+	if _, err := os.Stat(name); err == nil {
+		return name, nil
+	}
+	os.Remove(name)
+	err := ioutil.WriteFile(name, []byte(v1comp), 0644)
+	if err != nil {
+		glog.Errorf("Error saving config as %s: %v", name, err)
+		return "", err
+	}
+	return name, nil
 }
 
 func saveAsJson(i interface{}, filename string) error {
@@ -575,7 +617,7 @@ func saveBlob(reg *registry.Registry, repo, dir string, desc distribution.Descri
 		return "", err
 	}
 	f.Close()
-	if n != desc.Size {
+	if n < desc.Size {
 		return "", fmt.Errorf("Error saving %s: wrote only %d/%d bytes",
 			name, n, desc.Size)
 	}
