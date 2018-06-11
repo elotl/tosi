@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,7 +134,7 @@ func main() {
 		}
 	}
 
-	reg, err := registry.New(*url, *username, *password)
+	reg, err := newRegistryClient(*url, *username, *password)
 	if err != nil {
 		glog.Fatalf("Error connecting to registry: %v", err)
 	}
@@ -192,6 +194,38 @@ func main() {
 
 	// Done!
 	os.Exit(0)
+}
+
+// Creates a registry client with a shorter connection timeout, useful
+// for inside AWS: https://github.com/elotl/milpa/issues/178
+func newRegistryClient(registryUrl, username, password string) (*registry.Registry, error) {
+	url := strings.TrimSuffix(registryUrl, "/")
+	timeoutTransport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	transport := registry.WrapTransport(timeoutTransport, url, username, password)
+	registry := &registry.Registry{
+		URL: url,
+		Client: &http.Client{
+			Transport: transport,
+		},
+		Logf: registry.Log,
+	}
+
+	if err := registry.Ping(); err != nil {
+		return nil, err
+	}
+
+	return registry, nil
 }
 
 func saveAsJson(i interface{}, filename string) error {
