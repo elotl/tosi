@@ -156,7 +156,22 @@ func main() {
 		if err != nil {
 			glog.Fatalf("Error retrieving config: %v", err)
 		}
-		refs = manifestv1.References()
+		v1refs := manifestv1.References()
+		for i := len(v1refs) - 1; i >= 0; i-- {
+			// FSLayers might have duplicates.
+			exists := false
+			ref := v1refs[i]
+			for _, r := range refs {
+				if r.Digest == ref.Digest {
+					exists = true
+					break
+				}
+			}
+			if exists {
+				continue
+			}
+			refs = append(refs, ref)
+		}
 	} else if manifest.Versioned.SchemaVersion == 2 {
 		config, err = saveBlob(reg, repo, configdir, manifest.Config)
 		if err != nil {
