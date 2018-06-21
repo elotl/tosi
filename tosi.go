@@ -132,11 +132,11 @@ func main() {
 		// already exists.
 		err = os.RemoveAll(rootfs)
 		if err != nil {
-			glog.Fatalf("Error removing %s for %s", rootfs, *image)
+			glog.Fatalf("Error removing %s for %s: %v", rootfs, *image, err)
 		}
 		err = os.MkdirAll(rootfs, 0700)
 		if err != nil {
-			glog.Fatalf("Error creating %s for %s", rootfs, *image)
+			glog.Fatalf("Error creating %s for %s: %v", rootfs, *image, err)
 		}
 	}
 
