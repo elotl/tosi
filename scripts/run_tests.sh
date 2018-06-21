@@ -27,6 +27,7 @@ echo -n > /tmp/tosi.log
 ./tosi -image bitnami/tomcat:8.5.31 >> /tmp/tosi.log 2>&1
 ./tosi -image library/nginx:1.7.9 >> /tmp/tosi.log 2>&1
 ./tosi -image library/nginx:latest >> /tmp/tosi.log 2>&1
+./tosi -image k8s.gcr.io/k8s-dns-kube-dns-amd64:1.14.10 >> /tmp/tosi.log 2>&1
 
 ./tosi -image library/alpine:3.6 >> /tmp/tosi.log 2>&1
 compare_rootfs "/tmp/tosi/packages/library-alpine-3.6/3.6/ROOTFS"
