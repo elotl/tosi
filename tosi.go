@@ -83,6 +83,11 @@ func main() {
 	if *image == "" {
 		glog.Fatalf("Please specify image to pull")
 	}
+	if strings.HasPrefix(*image, "k8s.gcr.io/") {
+		// k8s.gcr.io is an alias used by GCR.
+		*image = "google_containers/" + strings.TrimPrefix(*image, "k8s.gcr.io/")
+		*url = "https://gcr.io/"
+	}
 
 	repo := *image
 	reference := "latest" // Default reference/tag.
