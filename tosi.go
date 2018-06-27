@@ -485,9 +485,22 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 			continue
 		}
 
+		mode := header.FileInfo().Mode()
+
+		glog.Infof("%s %v %v", name, header.Typeflag, mode)
+
 		switch header.Typeflag {
 		case tar.TypeDir: // directory
-			os.Mkdir(name, os.FileMode(header.Mode))
+			err := os.Mkdir(name, mode)
+			if err != nil && !os.IsExist(err) {
+				glog.Errorf("Extracting %s mkdir: %v", name, err)
+				return nil, err
+			}
+			err = os.Chmod(name, mode)
+			if err != nil {
+				glog.Errorf("Extracting %s chmod: %v", name, err)
+				return nil, err
+			}
 		case tar.TypeReg: // regular file
 			data := make([]byte, header.Size)
 			read_so_far := int64(0)
@@ -503,7 +516,7 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 				glog.Errorf("Extracting %s: read %d bytes, but size is %d bytes",
 					name, read_so_far, header.Size)
 			}
-			ioutil.WriteFile(name, data, os.FileMode(header.Mode))
+			ioutil.WriteFile(name, data, mode)
 		case tar.TypeLink, tar.TypeSymlink:
 			linkname := header.Linkname
 			// Hard links will need a valid absolute path. Update them,
@@ -514,7 +527,7 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 			// Links might point to files or directories that have not been
 			// extracted from the tarball yet. Create them after going through
 			// all entries in the tarball.
-			links = append(links, Link{linkname, name, header.Typeflag, os.FileMode(header.Mode), header.Uid, header.Gid})
+			links = append(links, Link{linkname, name, header.Typeflag, mode, header.Uid, header.Gid})
 			continue
 		default:
 			glog.Warningf(
