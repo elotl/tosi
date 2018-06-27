@@ -340,9 +340,6 @@ func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) 
 		if filepath.IsAbs(lname) && len(lname) > rlen && lname[:rlen] == rootfs {
 			lname = lname[rlen:]
 		}
-		glog.Infof("%s -> %s", name, lname)
-	} else {
-		glog.Infof("%s", name)
 	}
 	header, err := tar.FileInfoHeader(info, lname)
 	if err != nil {
@@ -353,6 +350,11 @@ func addPathToTar(tw *tar.Writer, path string, info os.FileInfo, rootfs string) 
 	if err = tw.WriteHeader(header); err != nil {
 		glog.Errorf("Writing tar header for %s: %v", path, err)
 		return err
+	}
+	if isLink {
+		glog.Infof("%s -> %s %v", name, lname, header.FileInfo().Mode())
+	} else {
+		glog.Infof("%s %v", name, header.FileInfo().Mode())
 	}
 	if info.IsDir() || isLink {
 		return nil
