@@ -519,6 +519,11 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 					name, read_so_far, header.Size)
 			}
 			ioutil.WriteFile(name, data, mode)
+			err = os.Chmod(name, mode)
+			if err != nil {
+				glog.Errorf("Extracting %s chmod: %v", name, err)
+				return nil, err
+			}
 		case tar.TypeLink, tar.TypeSymlink:
 			linkname := header.Linkname
 			// Hard links will need a valid absolute path. Update them,
