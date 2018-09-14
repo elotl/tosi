@@ -149,9 +149,9 @@ func main() {
 	var refs []distribution.Descriptor
 	manifest, err := reg.ManifestV2(repo, reference)
 	if err != nil {
-		glog.Fatalf("Error retrieving manifest: %v", err)
+		glog.Warningf("Error retrieving v2 manifest: %v, trying v1", err)
 	}
-	if manifest.Versioned.SchemaVersion == 1 {
+	if err != nil || manifest.Versioned.SchemaVersion == 1 {
 		// Old, v1 manifest.
 		manifestv1, err := reg.Manifest(repo, reference)
 		if err != nil {
