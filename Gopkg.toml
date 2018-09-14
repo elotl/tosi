@@ -34,8 +34,8 @@
   name = "github.com/golang/glog"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/heroku/docker-registry-client"
+  branch = "accept-v1-prettyjws"
+  name = "github.com/ldx/docker-registry-client"
 
 [[constraint]]
   name = "github.com/opencontainers/go-digest"

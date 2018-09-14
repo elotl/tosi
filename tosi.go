@@ -18,7 +18,7 @@ import (
 	"github.com/docker/distribution"
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	"github.com/golang/glog"
-	"github.com/heroku/docker-registry-client/registry"
+	"github.com/ldx/docker-registry-client/registry"
 	"github.com/opencontainers/go-digest"
 )
 
