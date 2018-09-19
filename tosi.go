@@ -196,7 +196,6 @@ func main() {
 		files = append(files, name)
 	}
 
-	var whiteouts []string
 	for _, f := range files {
 		// All layers (which are actually .tar.gz files) are extracted into our
 		// ROOTFS directory.
@@ -204,13 +203,11 @@ func main() {
 		if err != nil {
 			glog.Fatalf("Error processing layer %s: %v", f, err)
 		}
-		whiteouts = append(whiteouts, wo...)
-	}
-
-	// Process whiteouts.
-	err = processWhiteouts(rootfs, whiteouts)
-	if err != nil {
-		glog.Fatalf("Error processing whiteouts in %s", rootfs)
+		// Process whiteouts.
+		err = processWhiteouts(rootfs, wo)
+		if err != nil {
+			glog.Fatalf("Error processing whiteouts in %s", rootfs)
+		}
 	}
 
 	if *extractto == "" {
