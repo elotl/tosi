@@ -258,11 +258,9 @@ func newRegistryClient(registryUrl, username, password string) (*registry.Regist
 		},
 		Logf: registry.Log,
 	}
-
 	if err := registry.Ping(); err != nil {
-		return nil, err
+		glog.Warningf("Pinging %s failed: %v", registryUrl, err)
 	}
-
 	return registry, nil
 }
 
