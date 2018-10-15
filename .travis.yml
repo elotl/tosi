@@ -1,4 +1,17 @@
 language: go
 go:
-  - 1.9
+- 1.9
 script: scripts/run_tests.sh
+before_deploy:
+- mkdir build
+- cp tosi build/tosi
+deploy:
+  provider: s3
+  access_key_id: AKIAI2YNQWGNFDD54DNQ
+  secret_access_key:
+    secure: IXDSn9IQXqywfEfO6JcjaQ0t9jgthdqu734wrgbImtd022Tq49RCM0/Z9ByfduYigKKtyMD2eNRA6AL2B8Q08hGroRdJ/CxLc3cZJXp+sinB+PK3G/iGjp1jJAdmuO9Ya+AuHP7hU5wfDhJZcONVUF/bhfXqX8ufe2QtScZuthGUaUh0pQC3eERNKT7+4m1ws+4Bxph2A3NokSN2i4Q/8a7AvUsPS5DJNpxTeGecgibGz18A+yEer957QzHxorysH+42SiDUEX7EYNHOZWbbBab3uwvIJh588P5XEUWaKqt5NuNfyS3x7Q2vsddBeKKuU7S7TSxW1qbGKMZv6wKvN7BUKbtXtK/ZTmaYSOZeTbM9SAC1ZBuyShiKsJtrRYZRFCmlxg4YnJQr9cpUqrFjxDcBSQFpbQUd65rNGmtUdNPprv9rz4zINS5Bc3iSRtedaqAR9qvWtw1tOSPrD4/hwIxbCRI9q+oKiRaHOZaVTZ6cwOwh7F1uWEB9jbqyw/nr8uvyrXn/2sUZ8QS40lGVu5kAkjP6cZdRbxABi64M3puhzpSiAEHGYcmumClniY/hV1rKJi+ahFeRTLdeEhDZsLXSXfX1uEVgn+l35u+M/3eGzCsqxFA0tvqmHyK0sW5WzVx2Vfy9xKWEFdF8UOjMVjOMdKQCMlEApzUkSSoWrDo=
+  bucket: tosi
+  acl: public_read
+  on:
+    repo: elotl/tosi
+  local_dir: build
