@@ -26,6 +26,10 @@ const (
 	ROOTFS_BASEDIR = "ROOTFS"
 )
 
+var (
+	VERSION = "unknown"
+)
+
 // This is part of the config of docker images.
 type HealthConfig struct {
 	Test        []string      `json:",omitempty"`
@@ -69,6 +73,7 @@ type ImageConfig struct {
 }
 
 func main() {
+	version := flag.Bool("version", false, "Print current version")
 	image := flag.String("image", "", "Docker repository to pull")
 	url := flag.String("url", "https://registry-1.docker.io/", "Docker registry URL to use")
 	username := flag.String("username", "", "Username for registry login")
@@ -79,6 +84,12 @@ func main() {
 	saveconfig := flag.String("saveconfig", "", "Save config of image to file as JSON")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
+
+	glog.Infof("Tosi version %s", VERSION)
+
+	if *version {
+		os.Exit(0)
+	}
 
 	if *image == "" {
 		glog.Fatalf("Please specify image to pull")
