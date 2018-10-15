@@ -5,6 +5,9 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT_DIR=$SCRIPT_DIR/..
 cd $ROOT_DIR
+echo ">>> git diff-index:"
+git diff-index --quiet HEAD
+echo ">>> end of git diff-index"
 make
 go test ./...
 
