@@ -3,7 +3,6 @@ go:
 - 1.9
 script: scripts/run_tests.sh
 before_deploy:
-- git status
 - mkdir build
 - cp tosi build/tosi
 deploy:
