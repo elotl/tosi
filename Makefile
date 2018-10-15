@@ -1,7 +1,6 @@
 GIT_N_COMMITS=$(shell git log --oneline | wc -l)
 GIT_REVISION=$(shell git log --pretty=format:'%h' -n 1)
-GIT_DIRTY=$(shell git diff-index --quiet HEAD || echo -n '-dirty')
-VERSION=$(GIT_N_COMMITS)-$(GIT_REVISION)$(GIT_DIRTY)
+VERSION=$(GIT_N_COMMITS)-$(GIT_REVISION)
 
 LDFLAGS=-ldflags "-X main.VERSION=$(VERSION)"
 
