@@ -13,7 +13,7 @@ compare_rootfs() {
     cd ..
     mkdir -p check
     cd check
-    tar xvzf ../*.tar.gz
+    tar xzf ../*.tar.gz
     cd ROOTFS
     find . -exec ls -d -l {} \; | awk '{ s = ""; for (i = 9; i <= NF; i++) s = s $i " "; print s }' | sort > /tmp/files2.txt
     cmp /tmp/files1.txt /tmp/files2.txt
@@ -29,7 +29,7 @@ echo -n > /tmp/tosi.log
 # Manifest is v1+prettyjws.
 ./tosi -image k8s.gcr.io/redis:e2e >> /tmp/tosi.log 2>&1
 # One layer contains a directory without creating parent directory first.
-./tosi -image jenkinsxio/jx:2.0.22 >> /tmp/tosi.log
+./tosi -image jenkinsxio/jx:2.0.22 >> /tmp/tosi.log 2>&1
 # Manifest that requires per-layer whiteouts.
 ./tosi -url https://gcr.io -image google-samples/gb-frontend:v4 >> /tmp/tosi.log 2>&1
 # Registry that does not support pings.
