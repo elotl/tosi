@@ -30,6 +30,8 @@ echo -n > /tmp/tosi.log
 ./tosi -image k8s.gcr.io/k8s-dns-kube-dns-amd64:1.14.10 >> /tmp/tosi.log 2>&1
 # Manifest is v1+prettyjws.
 ./tosi -image k8s.gcr.io/redis:e2e >> /tmp/tosi.log 2>&1
+# One layer contains a directory without creating parent directory first.
+./tosi -image jenkinsxio/jx:2.0.22 >> /tmp/tosi.log
 # Manifest that requires per-layer whiteouts.
 ./tosi -url https://gcr.io -image google-samples/gb-frontend:v4 >> /tmp/tosi.log 2>&1
 # Registry that does not support pings.
