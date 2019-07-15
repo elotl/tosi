@@ -25,6 +25,8 @@ echo -n > /tmp/tosi.log
 ./tosi -image bitnami/tomcat:8.5.31 >> /tmp/tosi.log 2>&1
 ./tosi -image library/nginx:1.7.9 >> /tmp/tosi.log 2>&1
 ./tosi -image library/nginx:latest >> /tmp/tosi.log 2>&1
+./tosi -image library/alpine@sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998 >> /tmp/tosi.log 2>&1
+./tosi -image library/alpine:latest@sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998 >> /tmp/tosi.log 2>&1
 ./tosi -image k8s.gcr.io/k8s-dns-kube-dns-amd64:1.14.10 >> /tmp/tosi.log 2>&1
 # Manifest is v1+prettyjws.
 ./tosi -image k8s.gcr.io/redis:e2e >> /tmp/tosi.log 2>&1
