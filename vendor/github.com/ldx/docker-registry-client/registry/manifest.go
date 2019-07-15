@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 
+	manifestlist "github.com/docker/distribution/manifest/manifestlist"
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	manifestV2 "github.com/docker/distribution/manifest/schema2"
-	manifestlist "github.com/docker/distribution/manifest/manifestlist"
 	digest "github.com/opencontainers/go-digest"
 	imageV1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -60,7 +61,7 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 	if err != nil {
 		return nil, err
 	}
-	contentType := resp.Header["Content-Type"]
+	contentType := resp.Header.Get("Content-Type")
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -74,17 +75,17 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 		if err != nil {
 			return nil, err
 		}
-		if index.schemaVersion != 2 {
+		if index.SchemaVersion != 2 {
 			return nil, fmt.Errorf(
 				"Invalid schema version in manifest response: %s", string(body))
 		}
-		for _, m := index.Manifests {
-			if m.platform == nil ||
-			m.platform.os != runtime.GOOS ||
-			m.platform.arch != runtime.GOARCH {
+		for _, m := range index.Manifests {
+			if m.Platform == nil ||
+				m.Platform.OS != runtime.GOOS ||
+				m.Platform.Architecture != runtime.GOARCH {
 				continue
 			}
-			return registry.ManifestV2(repository, m.Digest)
+			return registry.ManifestV2(repository, m.Digest.String())
 		}
 		return nil, fmt.Errorf("Arch %q OS %q not found in index %s",
 			runtime.GOARCH, runtime.GOOS, string(body))
