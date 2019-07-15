@@ -2,12 +2,16 @@ package registry
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	manifestV2 "github.com/docker/distribution/manifest/schema2"
+	manifestlist "github.com/docker/distribution/manifest/manifestlist"
 	digest "github.com/opencontainers/go-digest"
+	imageV1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func (registry *Registry) Manifest(repository, reference string) (*manifestV1.SignedManifest, error) {
@@ -51,15 +55,44 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 	}
 
 	req.Header.Set("Accept", manifestV2.MediaTypeManifest)
+	req.Header.Set("Accept", manifestlist.MediaTypeManifestList)
 	resp, err := registry.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	contentType := resp.Header["Content-Type"]
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if contentType == manifestlist.MediaTypeManifestList {
+		index := imageV1.Index{}
+		err = json.Unmarshal(body, &index)
+		if err != nil {
+			return nil, err
+		}
+		if index.schemaVersion != 2 {
+			return nil, fmt.Errorf(
+				"Invalid schema version in manifest response: %s", string(body))
+		}
+		for _, m := index.Manifests {
+			if m.platform == nil ||
+			m.platform.os != runtime.GOOS ||
+			m.platform.arch != runtime.GOARCH {
+				continue
+			}
+			return registry.ManifestV2(repository, m.Digest)
+		}
+		return nil, fmt.Errorf("Arch %q OS %q not found in index %s",
+			runtime.GOARCH, runtime.GOOS, string(body))
+	}
+
+	if contentType != manifestV2.MediaTypeManifest {
+		return nil, fmt.Errorf(
+			"Invalid Content-Type in manifest response: %q", contentType)
 	}
 
 	deserialized := &manifestV2.DeserializedManifest{}
