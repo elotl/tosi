@@ -101,14 +101,31 @@ func main() {
 	}
 
 	repo := *image
-	reference := "latest" // Default reference/tag.
-	if strings.Contains(*image, ":") {
-		parts := strings.Split(*image, ":")
+	dgest := ""
+	reference := "latest"
+	if strings.Contains(repo, "@") { // Exact hash for the image.
+		parts := strings.Split(repo, "@")
 		if len(parts) != 2 {
-			glog.Fatalf("Invalid image %s", *image)
+			glog.Fatalf("Invalid image specified %q", repo)
 		}
 		repo = parts[0]
-		reference = parts[1]
+		dgest = parts[1]
+		d, err := digest.Parse(dgest)
+		if err != nil {
+			glog.Fatalf("Invalid hash specified in %q: %v", *image, err)
+		}
+		reference = d.String()
+	}
+	if strings.Contains(repo, ":") {
+		parts := strings.Split(repo, ":")
+		if len(parts) != 2 {
+			glog.Fatalf("Invalid image specified %q", *image)
+		}
+		repo = parts[0]
+		if dgest == "" {
+			// Only use the tag if no digest is specified.
+			reference = parts[1]
+		}
 	}
 
 	layerdir := filepath.Join(*workdir, "layers")
