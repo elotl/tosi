@@ -43,11 +43,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0d223374485c446c056e1ed4ae1972054d9a9ab16a84bd598b7214a5dcd1913f"
+  digest = "1:8cadc96813570feeb84ccb69d003bf8aaaa3e0d8ab96b408f8c28072bed7f4e7"
   name = "github.com/ldx/docker-registry-client"
   packages = ["registry"]
   pruneopts = "UT"
-  revision = "924939755ce0d1a6d18e508c905025fbdcbe2be3"
+  revision = "0e4c8bca12816c2958344491efd5c3e6baae1fb2"
 
 [[projects]]
   digest = "1:ee4d4af67d93cc7644157882329023ce9a7bcfce956a079069a9405521c7cc8d"

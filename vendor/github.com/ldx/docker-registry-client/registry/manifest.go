@@ -56,7 +56,7 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 	}
 
 	req.Header.Set("Accept", manifestV2.MediaTypeManifest)
-	req.Header.Set("Accept", manifestlist.MediaTypeManifestList)
+	req.Header.Add("Accept", manifestlist.MediaTypeManifestList)
 	resp, err := registry.Client.Do(req)
 	if err != nil {
 		return nil, err
