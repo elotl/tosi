@@ -545,7 +545,13 @@ func extractLayerToDir(filename, destdir string) ([]string, error) {
 				glog.Errorf("Extracting %s: read %d bytes, but size is %d bytes",
 					name, read_so_far, header.Size)
 			}
-			ioutil.WriteFile(name, data, mode)
+			// Ensure nothing exists at this path first.
+			os.Remove(name)
+			err = ioutil.WriteFile(name, data, mode)
+			if err != nil {
+				glog.Errorf("Extracting %s writing content: %v", name, err)
+				return nil, err
+			}
 			err = os.Chmod(name, mode)
 			if err != nil {
 				glog.Errorf("Extracting %s chmod: %v", name, err)
