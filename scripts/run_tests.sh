@@ -36,6 +36,8 @@ echo -n > /tmp/tosi.log
 ./tosi -url https://gcr.io -image google-samples/gb-frontend:v4 >> /tmp/tosi.log 2>&1
 # Registry that does not support pings.
 ./tosi -url https://quay.io -image quay/redis >> /tmp/tosi.log 2>&1
+# A layer creates a file that overwrites a symlink from a previous layer.
+./tosi -url https://gcr.io/ -image google-containers/conformance:v1.17.3 >> /tmp/tosi.log 2>&1
 
 ./tosi -image library/alpine:3.6 >> /tmp/tosi.log 2>&1
 compare_rootfs "/tmp/tosi/packages/library-alpine-3.6/3.6/ROOTFS"
