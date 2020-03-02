@@ -1,3 +1,19 @@
+/*
+Copyright 2020 Elotl Inc
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -74,14 +90,14 @@ type ImageConfig struct {
 
 func main() {
 	version := flag.Bool("version", false, "Print current version")
-	image := flag.String("image", "", "Docker repository to pull")
-	url := flag.String("url", "https://registry-1.docker.io/", "Docker registry URL to use")
+	image := flag.String("image", "", "Image repository to pull")
+	url := flag.String("url", "https://registry-1.docker.io/", "Registry URL to use")
 	username := flag.String("username", "", "Username for registry login")
 	password := flag.String("password", "", "Password for registry login")
 	workdir := flag.String("workdir", "/tmp/tosi", "Working directory, used for caching")
-	out := flag.String("out", "", "Milpa package file to create")
-	extractto := flag.String("extractto", "", "Only extract image to a directory, don't create package file")
-	saveconfig := flag.String("saveconfig", "", "Save config of image to file as JSON")
+	out := flag.String("out", "", "Flat tarball package file to create after processing layers")
+	extractto := flag.String("extractto", "", "Only extract image to this directory, don't create tarball")
+	saveconfig := flag.String("saveconfig", "", "Save config from image to file as JSON")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
@@ -239,7 +255,7 @@ func main() {
 	}
 
 	if *extractto == "" {
-		// Create Milpa package.
+		// Create tarball.
 		pkgpath, err := createPackage(pkgdir, repo, rootfs, *out)
 		if err != nil {
 			glog.Fatalf("Error creating package from %s: %v", rootfs, err)
@@ -262,8 +278,8 @@ func main() {
 	os.Exit(0)
 }
 
-// Creates a registry client with a shorter connection timeout, useful
-// for inside AWS: https://github.com/elotl/milpa/issues/178
+// Creates a registry client with a shorter connection timeout, useful for
+// inside AWS.
 func newRegistryClient(registryUrl, username, password string) (*registry.Registry, error) {
 	url := strings.TrimSuffix(registryUrl, "/")
 	timeoutTransport := &http.Transport{
