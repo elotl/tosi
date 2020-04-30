@@ -1,6 +1,6 @@
 language: go
 go:
-- 1.9
+- 1.13
 git:
   depth: false
 script: make; go test ./...; sudo scripts/run_tests.sh
