@@ -8,11 +8,10 @@ BINARIES=tosi
 
 TOP_DIR=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 CMD_SRC=$(shell find $(TOP_DIR)cmd -type f -name '*.go')
-VENDOR_SRC=$(shell find $(TOP_DIR)vendor -type f -name '*.go')
 
 all: $(BINARIES)
 
-tosi: $(PKG_SRC) $(VENDOR_SRC) $(CMD_SRC)
+tosi: $(PKG_SRC) $(CMD_SRC)
 	cd cmd/tosi && go build $(LDFLAGS) -o $(TOP_DIR)/tosi
 
 clean:
