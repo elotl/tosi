@@ -49,6 +49,7 @@ func main() {
 	extractto := flag.String("extractto", "", "Only extract image to this directory, don't create tarball")
 	saveconfig := flag.String("saveconfig", "", "Save config from image to file as JSON")
 	parallelism := flag.Int("parallel-downloads", 4, "Number of parallel downloads when pulling images")
+	validate := flag.Bool("validate-cache", false, "Enable to validate already downloaded layers in cache via verifying their checksum")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
@@ -82,7 +83,7 @@ func main() {
 	}
 
 	reg, err := registryclient.NewRegistryClient(
-		*url, *username, *password, false)
+		*url, *username, *password, *validate)
 	if err != nil {
 		glog.Fatalf("connecting to registry %s: %v", *url, err)
 	}
