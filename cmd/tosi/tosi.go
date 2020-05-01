@@ -48,6 +48,7 @@ func main() {
 	workdir := flag.String("workdir", "/tmp/tosi", "Working directory for downloading layers and creating snapshots")
 	extractto := flag.String("extractto", "", "Only extract image to this directory, don't create tarball")
 	saveconfig := flag.String("saveconfig", "", "Save config from image to file as JSON")
+	parallelism := flag.Int("parallel-downloads", 4, "Number of parallel downloads when pulling images")
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
@@ -86,7 +87,7 @@ func main() {
 		glog.Fatalf("connecting to registry %s: %v", *url, err)
 	}
 
-	store, err := store.NewStore(*workdir, reg)
+	store, err := store.NewStore(*workdir, *parallelism, reg)
 	if err != nil {
 		glog.Fatalf("creating image store in %s: %v", *workdir, err)
 	}

@@ -6,24 +6,28 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 
+	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/elotl/tosi/pkg/manifest"
 	"github.com/elotl/tosi/pkg/registryclient"
 	"github.com/elotl/tosi/pkg/util"
 	"github.com/golang/glog"
+	"github.com/hashicorp/go-multierror"
 )
 
 type Store struct {
-	BaseDir     string
-	layerDir    string
-	configDir   string
-	manifestDir string
-	reg         *registryclient.RegistryClient
+	BaseDir           string
+	layerDir          string
+	configDir         string
+	manifestDir       string
+	parallelDownloads int
+	reg               *registryclient.RegistryClient
 }
 
-func NewStore(basedir string, reg *registryclient.RegistryClient) (*Store, error) {
+func NewStore(basedir string, parallelism int, reg *registryclient.RegistryClient) (*Store, error) {
 	layerdir := filepath.Join(basedir, "layers")
 	configdir := filepath.Join(basedir, "configs")
 	manifestdir := filepath.Join(basedir, "manifests")
@@ -33,13 +37,61 @@ func NewStore(basedir string, reg *registryclient.RegistryClient) (*Store, error
 			return nil, fmt.Errorf("creating %s: %v", dir, err)
 		}
 	}
+	if parallelism < 0 {
+		parallelism = 1
+	}
 	return &Store{
-		BaseDir:     basedir,
-		layerDir:    layerdir,
-		configDir:   configdir,
-		manifestDir: manifestdir,
-		reg:         reg,
+		BaseDir:           basedir,
+		layerDir:          layerdir,
+		configDir:         configdir,
+		manifestDir:       manifestdir,
+		parallelDownloads: parallelism,
+		reg:               reg,
 	}, nil
+}
+
+func (s *Store) doPull(repo string, wg *sync.WaitGroup, layers chan distribution.Descriptor, results chan error) {
+	wg.Add(1)
+	defer wg.Done()
+	for layer := range layers {
+		glog.V(2).Infof("pulling %s layer %+v", repo, layer.Digest.String())
+		_, err := s.reg.SaveBlob(repo, s.layerDir, layer)
+		if err != nil {
+			results <- fmt.Errorf("downloading layer %v: %v", layer, err)
+		}
+		results <- nil
+	}
+}
+
+func (s *Store) pullLayers(repo string, mfest *manifest.Manifest) error {
+	wg := &sync.WaitGroup{}
+	layers := mfest.Layers()
+	layerCh := make(chan distribution.Descriptor, len(layers))
+	resultCh := make(chan error, len(layers))
+	parallelism := s.parallelDownloads
+	if parallelism <= 0 {
+		parallelism = len(layers)
+	}
+	glog.V(2).Infof("starting %d workers for pulling %s", parallelism, repo)
+	for i := 0; i < parallelism; i++ {
+		go s.doPull(repo, wg, layerCh, resultCh)
+	}
+	for _, layer := range layers {
+		layerCh <- layer
+	}
+	var result error
+	for i := 0; i < len(layers); i++ {
+		err := <-resultCh
+		if err != nil {
+			glog.Warningf("pulling %s: %v", repo, err)
+			result = multierror.Append(result, err)
+		}
+	}
+	glog.V(5).Infof("pulling %s: closing sending channel", repo)
+	close(layerCh)
+	glog.V(5).Infof("pulling %s: waiting for workers to finish", repo)
+	wg.Wait()
+	return result
 }
 
 func (s *Store) Pull(image string) (string, error) {
@@ -51,13 +103,7 @@ func (s *Store) Pull(image string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("retrieving manifest for %s: %v", image, err)
 	}
-	for _, layer := range mfest.Layers() {
-		_, err := s.reg.SaveBlob(repo, s.layerDir, layer)
-		if err != nil {
-			return "", fmt.Errorf(
-				"downloading layer %v for %s: %v", layer, image, err)
-		}
-	}
+	err = s.pullLayers(repo, mfest)
 	imageID := mfest.ID()
 	configPath := filepath.Join(s.configDir, imageID)
 	err = s.saveConfig(mfest, configPath)

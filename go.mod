@@ -10,6 +10,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2
 	github.com/ldx/docker-registry-client v0.0.0-20190716233113-0e4c8bca1281
 	github.com/opencontainers/go-digest v1.0.0-rc1
