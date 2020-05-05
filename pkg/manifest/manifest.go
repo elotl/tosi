@@ -161,17 +161,21 @@ func (m *Manifest) Save(dir string) error {
 	if err != nil {
 		return err
 	}
-	// Save manifest.
+	// Save manifest if it does not exist.
 	path := filepath.Join(dir, m.ID())
-	err = os.MkdirAll(filepath.Dir(path), 0755)
-	if err != nil {
-		return err
+	if _, err = os.Stat(path); err != nil {
+		err = os.MkdirAll(filepath.Dir(path), 0755)
+		if err != nil {
+			return err
+		}
+		err = util.AtomicWriteFile(path, buf, 0644)
+		if err != nil {
+			return err
+		}
 	}
-	err = util.AtomicWriteFile(path, buf, 0644)
-	if err != nil {
-		return err
-	}
-	// Create a link with the image name pointing to the manifest.
+	// Create a link with the image name pointing to the manifest. If the link
+	// already exists, it will be updated to point to the manifest with the
+	// right hash.
 	link := filepath.Join(dir, m.Image+":"+m.Tag)
 	err = os.MkdirAll(filepath.Dir(link), 0755)
 	if err != nil {

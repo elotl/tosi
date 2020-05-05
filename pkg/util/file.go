@@ -1,6 +1,7 @@
 package util
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,4 +25,17 @@ func AtomicWriteFile(filename string, buf []byte, mode os.FileMode) error {
 		return err
 	}
 	return nil
+}
+
+func IsEmptyDir(dir string) bool {
+	f, err := os.Open(dir)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	_, err = f.Readdirnames(1)
+	if err == io.EOF {
+		return true
+	}
+	return false
 }

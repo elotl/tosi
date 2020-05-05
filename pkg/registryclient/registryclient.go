@@ -91,7 +91,7 @@ func (r *RegistryClient) GetBlob(image string, desc distribution.Descriptor) ([]
 }
 
 func (r *RegistryClient) SaveBlob(image, dir string, desc distribution.Descriptor) (string, error) {
-	name := filepath.Join(dir, desc.Digest.String())
+	name := filepath.Join(dir, desc.Digest.Encoded())
 	// Check if we already have the blob downloaded.
 	if _, err := os.Stat(name); err == nil {
 		if !r.validateCachedLayers || isLayerValid(name, desc.Digest) {
@@ -106,7 +106,7 @@ func (r *RegistryClient) SaveBlob(image, dir string, desc distribution.Descripto
 		return "", err
 	}
 	defer os.RemoveAll(tmpdir)
-	tmpname := filepath.Join(tmpdir, desc.Digest.String())
+	tmpname := filepath.Join(tmpdir, desc.Digest.Encoded())
 	reader, err := r.reg.DownloadLayer(image, desc.Digest)
 	if err != nil {
 		return "", err
@@ -125,16 +125,18 @@ func (r *RegistryClient) SaveBlob(image, dir string, desc distribution.Descripto
 	}
 	f.Close()
 	if n < desc.Size {
-		return "", fmt.Errorf("saving %s: wrote only %d/%d bytes",
-			name, n, desc.Size)
+		return "", fmt.Errorf(
+			"saving %s: wrote only %d/%d bytes", name, n, desc.Size)
 	}
+	glog.V(5).Infof("%s size: %d bytes", name, n)
 	if !verifier.Verified() {
-		return "", fmt.Errorf("saving %s: verifier failed", name)
+		return "", fmt.Errorf("%s: verifier failed", name)
 	}
 	err = os.Rename(tmpname, name)
 	if err != nil {
 		return "", err
 	}
+	glog.V(2).Infof("%s saved blob", name)
 	return name, nil
 }
 

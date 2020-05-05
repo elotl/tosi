@@ -45,8 +45,10 @@ func main() {
 	url := flag.String("url", "https://registry-1.docker.io/", "Registry URL to use")
 	username := flag.String("username", "", "Username for registry login")
 	password := flag.String("password", "", "Password for registry login")
-	workdir := flag.String("workdir", "/tmp/tosi", "Working directory for downloading layers and creating snapshots")
-	extractto := flag.String("extractto", "", "Only extract image to this directory, don't create tarball")
+	workdir := flag.String("workdir", "/tmp/tosi", "Working directory for downloading layers and other metadata.")
+	overlaydir := flag.String("overlaydir", "", "Working directory for extracting layers. By default, the it will be <workdir>/overlays.")
+	extractto := flag.String("extractto", "", "Extract all layers of an image directly into this directory. Mutually exclusive with -mount <dir>.")
+	mount := flag.String("mount", "", "Create an overlayfs mount in this directory. Mutually exclusive with -extractto <dir>. The directory will be created if it does not exist.")
 	saveconfig := flag.String("saveconfig", "", "Save config from image to file as JSON")
 	parallelism := flag.Int("parallel-downloads", 4, "Number of parallel downloads when pulling images")
 	validate := flag.Bool("validate-cache", false, "Enable to validate already downloaded layers in cache via verifying their checksum")
@@ -62,6 +64,7 @@ func main() {
 	if *image == "" {
 		glog.Fatalf("Please specify image to pull")
 	}
+
 	if strings.HasPrefix(*image, "k8s.gcr.io/") {
 		// k8s.gcr.io is an alias used by GCR.
 		*image = "google_containers/" + strings.TrimPrefix(*image, "k8s.gcr.io/")
@@ -70,6 +73,9 @@ func main() {
 
 	rootfs := *extractto
 	if rootfs != "" {
+		if *mount != "" {
+			glog.Fatalf("-extractto and -mount are mutually exclusive")
+		}
 		// Extract into the specified directory, removing it first in case it
 		// already exists.
 		err := os.RemoveAll(rootfs)
@@ -88,7 +94,7 @@ func main() {
 		glog.Fatalf("connecting to registry %s: %v", *url, err)
 	}
 
-	store, err := store.NewStore(*workdir, *parallelism, reg)
+	store, err := store.NewStore(*workdir, *overlaydir, *parallelism, reg)
 	if err != nil {
 		glog.Fatalf("creating image store in %s: %v", *workdir, err)
 	}
@@ -101,6 +107,13 @@ func main() {
 		err = store.Unpack(*image, rootfs)
 		if err != nil {
 			glog.Fatalf("unpacking %s into %s: %v", *image, rootfs, err)
+		}
+	}
+
+	if *mount != "" {
+		err = store.Mount(*image, *mount)
+		if err != nil {
+			glog.Fatalf("mounting %s into /tmp/image: %v", *image, err)
 		}
 	}
 
