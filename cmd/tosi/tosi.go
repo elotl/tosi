@@ -79,13 +79,8 @@ func main() {
 		if *mount != "" {
 			glog.Fatalf("-extractto and -mount are mutually exclusive")
 		}
-		// Make sure rootfs exists, creating it if necessary. If it already
-		// exists, it needs to be empty.
-		err := os.MkdirAll(rootfs, 0700)
-		if err != nil {
-			glog.Fatalf("creating %s for %s: %v", rootfs, *image, err)
-		}
-		if !util.IsEmptyDir(rootfs) {
+		// If rootfs already exists, it needs to be empty.
+		if util.PathExists(rootfs) && !util.IsEmptyDir(rootfs) {
 			glog.Fatalf("%s is not empty or accessible", rootfs)
 		}
 	}

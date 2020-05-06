@@ -39,3 +39,13 @@ func IsEmptyDir(dir string) bool {
 	}
 	return false
 }
+
+func PathExists(path string) bool {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	// We might still have an error, but that's probably related to
+	// permissions. Assume the path exists.
+	return true
+}

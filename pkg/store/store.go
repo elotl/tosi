@@ -86,7 +86,7 @@ func (s *Store) doPull(repo string, wg *sync.WaitGroup, layers chan distribution
 		dgest := layer.Digest.Encoded()
 		into := filepath.Join(s.overlayDir, dgest)
 		if _, err = os.Stat(into); err != nil {
-			err = s.unpackLayer(dgest, into)
+			err = s.unpackLayer(dgest, into, true)
 		}
 		if err == nil {
 			err = s.createShortLink(into)
@@ -170,7 +170,7 @@ func (s *Store) Unpack(image, dest string) error {
 	}
 	for _, layer := range mfest.Layers() {
 		dgest := layer.Digest.Encoded()
-		err = s.unpackLayer(dgest, dest)
+		err = s.unpackLayer(dgest, dest, false)
 		if err != nil {
 			return err
 		}
@@ -178,7 +178,7 @@ func (s *Store) Unpack(image, dest string) error {
 	return nil
 }
 
-func (s *Store) unpackLayer(dgest, into string) error {
+func (s *Store) unpackLayer(dgest, into string, atomic bool) error {
 	glog.V(1).Infof("unpacking layer %s into %s", dgest, into)
 	path := filepath.Join(s.layerDir, dgest)
 	reader, err := os.Open(path)
@@ -186,18 +186,24 @@ func (s *Store) unpackLayer(dgest, into string) error {
 		return err
 	}
 	defer reader.Close()
-	tmpdir, err := ioutil.TempDir(filepath.Dir(into), "tosi-layer-")
-	if err != nil {
-		return err
+	dest := into
+	if atomic {
+		tmpdir, err := ioutil.TempDir(filepath.Dir(into), "tosi-layer-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmpdir)
+		dest = tmpdir
 	}
-	defer os.RemoveAll(tmpdir)
-	err = archive.Untar(reader, tmpdir, &archive.TarOptions{
+	err = archive.Untar(reader, dest, &archive.TarOptions{
 		NoLchown: true,
 		InUserNS: true,
 	})
-	err = os.Rename(tmpdir, into)
-	if err != nil {
-		return err
+	if atomic {
+		err = os.Rename(dest, into)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -284,7 +290,7 @@ func (s *Store) Mount(image, dest string) error {
 		go func() {
 			_, err := os.Stat(into)
 			if err != nil {
-				err = s.unpackLayer(dgst, into)
+				err = s.unpackLayer(dgst, into, true)
 			}
 			if err == nil {
 				err = s.createShortLink(into)
