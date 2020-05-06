@@ -3,7 +3,7 @@ go:
 - 1.13
 git:
   depth: false
-script: make; go test ./...; sudo scripts/run_tests.sh
+script: make; go test ./...; sudo bash -x scripts/run_tests.sh
 before_deploy:
 - mkdir build
 - cp tosi build/tosi
