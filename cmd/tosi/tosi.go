@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/elotl/tosi/pkg/registryclient"
 	"github.com/elotl/tosi/pkg/store"
+	"github.com/elotl/tosi/pkg/util"
 	"github.com/golang/glog"
 )
 
@@ -76,15 +77,14 @@ func main() {
 		if *mount != "" {
 			glog.Fatalf("-extractto and -mount are mutually exclusive")
 		}
-		// Extract into the specified directory, removing it first in case it
-		// already exists.
-		err := os.RemoveAll(rootfs)
-		if err != nil {
-			glog.Fatalf("removing %s for %s: %v", rootfs, *image, err)
-		}
-		err = os.MkdirAll(rootfs, 0700)
+		// Make sure rootfs exists, creating it if necessary. If it already
+		// exists, it needs to be empty.
+		err := os.MkdirAll(rootfs, 0700)
 		if err != nil {
 			glog.Fatalf("creating %s for %s: %v", rootfs, *image, err)
+		}
+		if !util.IsEmptyDir(rootfs) {
+			glog.Fatalf("%s is not empty or accessible", rootfs)
 		}
 	}
 
