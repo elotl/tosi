@@ -179,18 +179,27 @@ func (s *Store) Unpack(image, dest string) error {
 }
 
 func (s *Store) unpackLayer(dgest, into string) error {
-	err := os.MkdirAll(into, 0755)
-	if err != nil {
-		return err
-	}
+	glog.V(1).Infof("unpacking layer %s into %s", dgest, into)
 	path := filepath.Join(s.layerDir, dgest)
 	reader, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
-	glog.V(1).Infof("unpacking layer %s into %s", dgest, into)
-	return archive.Untar(reader, into, &archive.TarOptions{NoLchown: true})
+	tmpdir, err := ioutil.TempDir(filepath.Dir(into), "tosi-layer-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpdir)
+	err = archive.Untar(reader, tmpdir, &archive.TarOptions{
+		NoLchown: true,
+		InUserNS: true,
+	})
+	err = os.Rename(tmpdir, into)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func randomString() string {
