@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 
@@ -56,11 +57,12 @@ func main() {
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
-	glog.Infof("Tosi version %s", VERSION)
-
 	if *version {
+		fmt.Printf("Tosi version %s\n", VERSION)
 		os.Exit(0)
 	}
+
+	glog.Infof("Tosi version: %s parameters: %v", VERSION, os.Args)
 
 	if *image == "" {
 		glog.Fatalf("Please specify image to pull")
@@ -126,5 +128,6 @@ func main() {
 	}
 
 	// Done!
+	glog.Infof("Success!")
 	os.Exit(0)
 }
