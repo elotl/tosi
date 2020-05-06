@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ type RegistryClient struct {
 }
 
 func NewRegistryClient(registryURL, username, password string, validate bool) (*RegistryClient, error) {
-	url := strings.TrimSuffix(registryURL, "/")
+	regURL := strings.TrimSuffix(registryURL, "/")
 	// Creates a client with a shorter connection timeout, useful inside AWS.
 	timeoutTransport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -40,9 +41,14 @@ func NewRegistryClient(registryURL, username, password string, validate bool) (*
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
-	transport := registry.WrapTransport(timeoutTransport, url, username, password)
+	u, _ := url.Parse(regURL)
+	if u.Scheme == "" {
+		regURL = "https://" + regURL
+	}
+	transport := registry.WrapTransport(
+		timeoutTransport, regURL, username, password)
 	reg := &registry.Registry{
-		URL: url,
+		URL: regURL,
 		Client: &http.Client{
 			Transport: transport,
 		},
