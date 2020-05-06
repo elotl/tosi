@@ -226,7 +226,7 @@ func (s *Store) createShortLink(path string) error {
 		if err != nil {
 			glog.V(2).Infof("%s exists, generating new short link", link)
 		}
-		err = ioutil.WriteFile(savedLink, []byte(filepath.Base(link)), 0644)
+		err = util.AtomicWriteFile(savedLink, []byte(filepath.Base(link)), 0644)
 		if err != nil {
 			os.Remove(link)
 			return err
