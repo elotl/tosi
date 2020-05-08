@@ -188,7 +188,11 @@ func (s *Store) unpackLayer(dgest, into string, atomic bool) error {
 	defer reader.Close()
 	dest := into
 	if atomic {
-		tmpdir, err := ioutil.TempDir(filepath.Dir(into), "tosi-layer-")
+		clean := filepath.Clean(into)
+		dir := filepath.Dir(clean)
+		base := filepath.Base(clean)
+		tmpdir := filepath.Join(dir, "."+base)
+		err := os.Mkdir(tmpdir, 0755)
 		if err != nil {
 			return err
 		}

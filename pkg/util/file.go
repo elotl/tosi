@@ -2,7 +2,6 @@ package util
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -10,13 +9,14 @@ import (
 func AtomicWriteFile(filename string, buf []byte, mode os.FileMode) error {
 	dir := filepath.Dir(filename)
 	base := filepath.Base(filename)
-	tmpdir, err := ioutil.TempDir(dir, "tmp-")
+	tmpname := filepath.Join(dir, "."+base)
+	f, err := os.OpenFile(tmpname, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpdir)
-	tmpname := filepath.Join(tmpdir, base)
-	err = ioutil.WriteFile(tmpname, buf, mode)
+	defer f.Close()
+	defer os.Remove(tmpname)
+	_, err = f.Write(buf)
 	if err != nil {
 		return err
 	}

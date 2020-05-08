@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -107,18 +106,13 @@ func (r *RegistryClient) SaveBlob(image, dir string, desc distribution.Descripto
 		}
 	}
 	glog.V(2).Infof("saving image %s blob %s", image, name)
-	tmpdir, err := ioutil.TempDir(dir, "tmp-")
-	if err != nil {
-		return "", err
-	}
-	defer os.RemoveAll(tmpdir)
-	tmpname := filepath.Join(tmpdir, desc.Digest.Encoded())
+	tmpname := filepath.Join(dir, "."+desc.Digest.Encoded())
 	reader, err := r.reg.DownloadLayer(image, desc.Digest)
 	if err != nil {
 		return "", err
 	}
 	defer reader.Close()
-	f, err := os.Create(tmpname)
+	f, err := os.OpenFile(tmpname, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return "", err
 	}
