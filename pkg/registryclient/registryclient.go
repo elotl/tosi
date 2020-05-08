@@ -15,6 +15,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/elotl/tosi/pkg/util"
 	"github.com/golang/glog"
 	"github.com/ldx/docker-registry-client/registry"
 	"github.com/opencontainers/go-digest"
@@ -132,7 +133,7 @@ func (r *RegistryClient) SaveBlob(image, dir string, desc distribution.Descripto
 	if !verifier.Verified() {
 		return "", fmt.Errorf("%s: verifier failed", name)
 	}
-	err = os.Rename(tmpname, name)
+	err = util.RenameFile(tmpname, name)
 	if err != nil {
 		return "", err
 	}

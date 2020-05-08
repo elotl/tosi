@@ -20,11 +20,19 @@ func AtomicWriteFile(filename string, buf []byte, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	err = os.Rename(tmpname, filename)
+	err = RenameFile(tmpname, filename)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func RenameFile(oldpath, newpath string) error {
+	err := os.Link(oldpath, newpath)
+	if err != nil {
+		return err
+	}
+	return os.Remove(oldpath)
 }
 
 func IsEmptyDir(dir string) bool {

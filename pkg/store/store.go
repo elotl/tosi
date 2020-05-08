@@ -188,6 +188,9 @@ func (s *Store) unpackLayer(dgest, into string, atomic bool) error {
 	defer reader.Close()
 	dest := into
 	if atomic {
+		if util.PathExists(into) {
+			return fmt.Errorf("%s already exists", into)
+		}
 		clean := filepath.Clean(into)
 		dir := filepath.Dir(clean)
 		base := filepath.Base(clean)
@@ -196,16 +199,20 @@ func (s *Store) unpackLayer(dgest, into string, atomic bool) error {
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(tmpdir)
 		dest = tmpdir
 	}
 	err = archive.Untar(reader, dest, &archive.TarOptions{
 		NoLchown: true,
 		InUserNS: true,
 	})
+	if err != nil {
+		os.RemoveAll(dest)
+		return err
+	}
 	if atomic {
 		err = os.Rename(dest, into)
 		if err != nil {
+			os.RemoveAll(dest)
 			return err
 		}
 	}
