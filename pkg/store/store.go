@@ -241,7 +241,7 @@ func (s *Store) createShortLink(path string) error {
 	dir := filepath.Dir(path)
 	for retries := 0; retries < maxRetries; retries++ {
 		link := filepath.Join(dir, randomString())
-		err = os.Symlink(path, link)
+		err = os.Symlink(filepath.Base(path), link)
 		if err != nil {
 			glog.V(2).Infof("%s exists, generating new short link", link)
 		}
