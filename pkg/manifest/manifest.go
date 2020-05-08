@@ -162,7 +162,8 @@ func (m *Manifest) Save(dir string) error {
 		return err
 	}
 	// Save manifest if it does not exist.
-	path := filepath.Join(dir, m.ID())
+	fileName := m.ID()
+	path := filepath.Join(dir, fileName)
 	if _, err = os.Stat(path); err != nil {
 		err = os.MkdirAll(filepath.Dir(path), 0755)
 		if err != nil {
@@ -174,15 +175,22 @@ func (m *Manifest) Save(dir string) error {
 		}
 	}
 	// Create a link with the image name pointing to the manifest. If the link
-	// already exists, it will be updated to point to the manifest with the
-	// right hash.
+	// already exists, it will be updated.
 	link := filepath.Join(dir, m.Image+":"+m.Tag)
-	err = os.MkdirAll(filepath.Dir(link), 0755)
+	linkDir := filepath.Dir(link)
+	err = os.MkdirAll(linkDir, 0755)
 	if err != nil {
 		return err
 	}
+	// Create a relative link, so that it does not depend on absolute paths.
+	// This helps if the cache is moved to new directory.
+	rel, err := filepath.Rel(linkDir, dir)
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(rel, fileName)
 	_ = os.Remove(link)
-	err = os.Symlink(path, link)
+	err = os.Symlink(target, link)
 	if err != nil {
 		return err
 	}
