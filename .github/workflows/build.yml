@@ -1,0 +1,48 @@
+on: [push, pull_request]
+name: Build and test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13.x
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: '0'
+    - run: git fetch origin +refs/tags/*:refs/tags/*
+    - name: Remove pigz
+      run: |
+        sudo apt-get remove pigz || true
+    - name: Build binary
+      run: |
+        export PATH=$PATH:$(go env GOPATH)/bin
+        make
+    - name: Run tests
+      run: |
+        go test ./...
+        sudo bash -x ./scripts/run_tests.sh
+    - name: Create release
+      if: startsWith(github.event.ref, 'refs/tags/v')
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+    - name: Upload release asset
+      if: startsWith(github.event.ref, 'refs/tags/v')
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./tosi
+        asset_name: tosi-amd64
+        asset_content_type: application/octet-stream

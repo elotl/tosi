@@ -1,18 +1,17 @@
-GIT_N_COMMITS=$(shell git log --oneline | wc -l)
-GIT_REVISION=$(shell git log --pretty=format:'%h' -n 1)
-VERSION=$(GIT_N_COMMITS)-$(GIT_REVISION)
+GIT_VERSION=$(shell git describe --dirty || echo dev)
 
-LDFLAGS=-ldflags "-X main.VERSION=$(VERSION)"
+LDFLAGS=-ldflags "-X main.VERSION=$(GIT_VERSION)"
 
 BINARIES=tosi
 
 TOP_DIR=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 CMD_SRC=$(shell find $(TOP_DIR)cmd -type f -name '*.go')
+PKG_SRC=$(shell find $(TOP_DIR)pkg -type f -name '*.go')
 
 all: $(BINARIES)
 
-tosi: $(PKG_SRC) $(CMD_SRC)
-	cd cmd/tosi && go build $(LDFLAGS) -o $(TOP_DIR)/tosi
+tosi: $(CMD_SRC) $(PKG_SRC) go.sum
+	go build $(LDFLAGS) -o tosi cmd/tosi/tosi.go
 
 clean:
 	rm -f $(BINARIES)

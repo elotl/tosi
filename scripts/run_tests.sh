@@ -1,46 +1,53 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT_DIR=$SCRIPT_DIR/..
 cd $ROOT_DIR
 
-compare_rootfs() {
-    rootfs="$1"
-    pushd "$rootfs"
-    find . -exec ls -d -l {} \; | awk '{ s = ""; for (i = 9; i <= NF; i++) s = s $i " "; print s }' | sort > /tmp/files1.txt
-    cd ..
-    mkdir -p check
-    cd check
-    tar xzf ../*.tar.gz
-    cd ROOTFS
-    find . -exec ls -d -l {} \; | awk '{ s = ""; for (i = 9; i <= NF; i++) s = s $i " "; print s }' | sort > /tmp/files2.txt
-    cmp /tmp/files1.txt /tmp/files2.txt
-    popd
+tmpdir="$(mktemp -d)"
+
+function cleanup() {
+    for m in $(mount | grep "on $tmpdir" | awk '{print $3}'); do
+        umount "$m"
+    done
+    rm -rf $tmpdir
+}
+trap cleanup EXIT
+
+function tmpd() {
+    echo "$(mktemp -d -p $tmpdir)"
 }
 
-echo -n > /tmp/tosi.log
+function tmpf() {
+    local f="$(mktemp -p $tmpdir)"
+    rm "$f"
+    echo $f
+}
 
-./tosi -image bitnami/tomcat:8.5.31 >> /tmp/tosi.log 2>&1
-./tosi -image library/nginx:1.7.9 >> /tmp/tosi.log 2>&1
-./tosi -image library/nginx:latest >> /tmp/tosi.log 2>&1
-./tosi -image library/alpine@sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998 >> /tmp/tosi.log 2>&1
-./tosi -image library/alpine:latest@sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998 >> /tmp/tosi.log 2>&1
-./tosi -image k8s.gcr.io/k8s-dns-kube-dns-amd64:1.14.10 >> /tmp/tosi.log 2>&1
+# Basic checks.
+./tosi -image bitnami/tomcat:8.5.31 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image library/nginx:1.7.9 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image library/nginx:latest -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image library/ruby -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image library/alpine:3.6 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image library/alpine@sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image library/alpine:latest@sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image k8s.gcr.io/k8s-dns-kube-dns-amd64:1.14.10 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Manifest is v1+prettyjws.
-./tosi -image k8s.gcr.io/redis:e2e >> /tmp/tosi.log 2>&1
+./tosi -image k8s.gcr.io/redis:e2e -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # One layer contains a directory without creating parent directory first.
-./tosi -image jenkinsxio/jx:2.0.22 >> /tmp/tosi.log 2>&1
+./tosi -image jenkinsxio/jx:2.0.22 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Manifest that requires per-layer whiteouts.
-./tosi -url https://gcr.io -image google-samples/gb-frontend:v4 >> /tmp/tosi.log 2>&1
+./tosi -url https://gcr.io -image google-samples/gb-frontend:v4 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Registry that does not support pings.
-./tosi -url https://quay.io -image quay/redis >> /tmp/tosi.log 2>&1
+./tosi -url https://quay.io -image quay/redis -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # A layer creates a file that overwrites a symlink from a previous layer.
-./tosi -url https://gcr.io/ -image google-containers/conformance:v1.17.3 >> /tmp/tosi.log 2>&1
-
-./tosi -image library/alpine:3.6 >> /tmp/tosi.log 2>&1
-compare_rootfs "/tmp/tosi/packages/library-alpine-3.6/3.6/ROOTFS"
-
-./tosi -image library/ruby >> /tmp/tosi.log 2>&1
-compare_rootfs "/tmp/tosi/packages/library-ruby/latest/ROOTFS"
+./tosi -url https://gcr.io/ -image google-containers/conformance:v1.17.3 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+# Create overlayfs.
+rootfs="$(tmpd)"
+./tosi -image library/ubuntu -mount "$rootfs"
+[ "$(ls -l $rootfs | wc -l)" -gt 5 ]
+# Use cached layers.
+./tosi -image library/ubuntu
