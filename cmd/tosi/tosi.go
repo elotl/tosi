@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/elotl/tosi/pkg/registryclient"
@@ -43,8 +42,8 @@ type ImageConfig struct {
 
 func main() {
 	version := flag.Bool("version", false, "Print current version and exit.")
-	image := flag.String("image", "", "Image repository to pull. Usual conventions can be used; e.g. library/alpine:3.6 to specify the repository library/alpine and the tag 3.6. See also -url.")
-	url := flag.String("url", "https://registry-1.docker.io/", "Registry base URL to use. For example, to pull quay.io/prometheus/node-exporter you need to specify \"-url quay.io -image prometheus/node-exporter\". See also -image.")
+	image := flag.String("image", "", "Image repository to pull. Usual conventions can be used; e.g. library/alpine:3.6 to specify the repository library/alpine and the tag 3.6.")
+	url := flag.String("url", "", "DEPRECATED. Use -image instead with the registry server as the first part, e.g. quay.io/myuser/myimage.")
 	username := flag.String("username", "", "Username for registry login. Leave it empty if no login is required for pulling the image.")
 	password := flag.String("password", "", "Password for registry login. Leave it empty if no login is required for pulling the image.")
 	workdir := flag.String("workdir", "/tmp/tosi", "Working directory for downloading layers and other metadata. This directory will be effectively used as a cache of images and layers. Do not modify any file inside it.")
@@ -68,11 +67,12 @@ func main() {
 		glog.Fatalf("Please specify image to pull")
 	}
 
-	if strings.HasPrefix(*image, "k8s.gcr.io/") {
-		// k8s.gcr.io is an alias used by GCR.
-		*image = "google_containers/" + strings.TrimPrefix(*image, "k8s.gcr.io/")
-		*url = "https://gcr.io/"
+	registry := *url
+	img := *image
+	if registry == "" {
+		registry, img = util.ParseFullImage(*image)
 	}
+	glog.Infof("pulling image %q from registry %q", img, registry)
 
 	rootfs := *extractto
 	if rootfs != "" {
@@ -86,39 +86,38 @@ func main() {
 	}
 
 	reg, err := registryclient.NewRegistryClient(
-		*url, *username, *password, *validate)
+		registry, *username, *password, *validate)
 	if err != nil {
-		glog.Fatalf("connecting to registry %s: %v", *url, err)
+		glog.Fatalf("connecting to registry %s: %v", registry, err)
 	}
 
 	store, err := store.NewStore(*workdir, *overlaydir, *parallelism, reg)
 	if err != nil {
 		glog.Fatalf("creating image store in %s: %v", *workdir, err)
 	}
-	_, err = store.Pull(*image)
+	_, err = store.Pull(img)
 	if err != nil {
-		glog.Fatalf("pulling image %s: %v", *image, err)
+		glog.Fatalf("pulling image %s: %v", img, err)
 	}
 
 	if rootfs != "" {
-		err = store.Unpack(*image, rootfs)
+		err = store.Unpack(img, rootfs)
 		if err != nil {
-			glog.Fatalf("unpacking %s into %s: %v", *image, rootfs, err)
+			glog.Fatalf("unpacking %s into %s: %v", img, rootfs, err)
 		}
 	}
 
 	if *mount != "" {
-		err = store.Mount(*image, *mount)
+		err = store.Mount(img, *mount)
 		if err != nil {
-			glog.Fatalf("mounting %s into /tmp/image: %v", *image, err)
+			glog.Fatalf("mounting %s into %s: %v", img, *mount, err)
 		}
 	}
 
 	if *saveconfig != "" {
-		err = store.SaveConfig(*image, *saveconfig)
+		err = store.SaveConfig(img, *saveconfig)
 		if err != nil {
-			glog.Fatalf(
-				"saving config for %s to %s: %v", *image, *saveconfig, err)
+			glog.Fatalf("saving config for %s to %s: %v", img, *saveconfig, err)
 		}
 	}
 

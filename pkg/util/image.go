@@ -7,6 +7,38 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
+// This parses a full image name with the registry name as the first part.
+func ParseFullImage(fullImage string) (string, string) {
+	registry := ""
+	repo := ""
+	parts := strings.Split(fullImage, "/")
+	if len(parts) == 1 {
+		// Old docker-style image name, e.g. "alpine".
+		registry = "https://registry-1.docker.io/"
+		repo = "library/" + parts[0]
+		return registry, repo
+	}
+	if parts[0] == "k8s.gcr.io" {
+		// k8s.gcr.io is an alias used by GCR.
+		registry = "https://gcr.io/"
+		repo = "google_containers/" + strings.Join(parts[1:], "/")
+		return registry, repo
+	}
+	if strings.Contains(parts[0], ".") {
+		registry = strings.ToLower(parts[0])
+		if !strings.HasPrefix(registry, "http://") &&
+			!strings.HasPrefix(registry, "https://") {
+			registry = "https://" + registry + "/"
+		}
+		repo = strings.Join(parts[1:], "/")
+		return registry, repo
+	}
+	registry = "https://registry-1.docker.io/"
+	repo = strings.Join(parts, "/")
+	return registry, repo
+}
+
+// This parses an image name with an optional tag, without the registry name.
 func ParseImageSpec(image string) (string, string, error) {
 	repo := image
 	dgest := ""
