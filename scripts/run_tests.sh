@@ -17,6 +17,8 @@ function cleanup() {
 trap cleanup EXIT
 
 function tmpd() {
+    # Remove directories from previous test cases.
+    find $tmpdir -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} \; > /dev/null 2>&1
     echo "$(mktemp -d -p $tmpdir)"
 }
 
