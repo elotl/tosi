@@ -44,7 +44,7 @@ function tmpf() {
 # Manifest that requires per-layer whiteouts.
 ./tosi -image gcr.io/google-samples/gb-frontend:v4 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Registry that does not support pings.
-./tosi -image quay.io/quay/redis -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+#./tosi -image quay.io/quay/redis -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Old-style deprecated URL parameter.
 ./tosi -url https://quay.io -image calico/cni:v3.4.0 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # A layer creates a file that overwrites a symlink from a previous layer.
