@@ -40,11 +40,13 @@ function tmpf() {
 # One layer contains a directory without creating parent directory first.
 ./tosi -image jenkinsxio/jx:2.0.22 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Manifest that requires per-layer whiteouts.
-./tosi -url https://gcr.io -image google-samples/gb-frontend:v4 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image gcr.io/google-samples/gb-frontend:v4 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Registry that does not support pings.
-./tosi -url https://quay.io -image quay/redis -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image quay.io/quay/redis -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+# Old-style deprecated URL parameter.
+./tosi -url https://quay.io -image calico/cni:v3.4.0 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # A layer creates a file that overwrites a symlink from a previous layer.
-./tosi -url https://gcr.io/ -image google-containers/conformance:v1.17.3 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
+./tosi -image gcr.io/google-containers/conformance:v1.17.3 -saveconfig "$(tmpf)" -extractto "$(tmpd)"
 # Create overlayfs.
 rootfs="$(tmpd)"
 ./tosi -image library/ubuntu -mount "$rootfs"
