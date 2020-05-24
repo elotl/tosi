@@ -50,6 +50,77 @@ Check the speedup from caching layers:
     user    0m0,160s
     sys     0m0,055s
 
+## How it works
+
+Docker (and other modern container runtime, like containerd or CRI-O) containers are images with a writeable layer on top of one or more read-only layers. The read-only layers are created when an image is built, for example via `docker build`. The layers when saved are tarballs of all the files and directories created in a particular step of the image build. Images are stored on registry servers.
+
+Tosi can fetch these layers and create a snapshot of all of them extracted or mounted via overlayfs into a directory, along with metadata, such as the image "config" (which provides overrideable defaults such as environment variables, entrypoint, etc) and the manifest describing the image.
+
+If you look at the directories created by tosi:
+
+    $ ls -1 /tmp/tosi
+    configs/
+    layers/
+    manifests/
+    overlays/
+
+Here, "configs" contains the image configs, "manifests" the image manifests. The directory "layers" contains the layer tarballs, and finally, "overlays" contains directories with extracted layers.
+
+For example, the image `alpine:3.6` has only one layer:
+
+    {
+       "schemaVersion": 2,
+       "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+       "config": {
+          "mediaType": "application/vnd.docker.container.image.v1+json",
+          "size": 1512,
+          "digest": "sha256:43773d1dba76c4d537b494a8454558a41729b92aa2ad0feb23521c3e58cd0440"
+       },
+       "layers": [
+          {
+             "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+             "size": 2017774,
+             "digest": "sha256:5a3ea8efae5d0abb93d2a04be0a4870087042b8ecab8001f613cdc2a9440616a"
+          }
+       ]
+    }
+
+It is a tar.gz file:
+
+    $ file /tmp/tosi/layers/5a3ea8efae5d0abb93d2a04be0a4870087042b8ecab8001f613cdc2a9440616a
+    /tmp/tosi/layers/5a3ea8efae5d0abb93d2a04be0a4870087042b8ecab8001f613cdc2a9440616a: gzip compressed data, original size 4282880
+
+You can check out the contents of the layer:
+
+    $ ls -1 /tmp/tosi/overlays/5a3ea8efae5d0abb93d2a04be0a4870087042b8ecab8001f613cdc2a9440616a
+    bin/
+    dev/
+    etc/
+    home/
+    lib/
+    media/
+    mnt/
+    proc/
+    root/
+    run/
+    sbin/
+    srv/
+    sys/
+    tmp/
+    usr/
+    var/
+
+Tosi also creates a short link, since overlayfs has a limit on the length of all the layer names when creating a mount. You can check the short link:
+
+    $ cat /tmp/tosi/overlays/5a3ea8efae5d0abb93d2a04be0a4870087042b8ecab8001f613cdc2a9440616a.link
+    1s8vir6felvja
+    $ ls -l /tmp/tosi/overlays/1s8vir6felvja
+    lrwxrwxrwx 1 root root 64 máj   19 10:04 /tmp/tosi/overlays/1s8vir6felvja -> 5a3ea8efae5d0abb93d2a04be0a4870087042b8ecab8001f613cdc2a9440616a/
+    $ tosi -image alpine:3.6 -mount /tmp/alpine-rootfs
+    [...]
+    $ mount | grep alpine
+    overlay on /tmp/alpine-rootfs type overlay (rw,relatime,lowerdir=1s8vir6felvja,upperdir=/tmp/alpine-rootfs.upper,workdir=/tmp/alpine-rootfs.work)
+
 ## Command line options
 
 * -alsologtostderr
