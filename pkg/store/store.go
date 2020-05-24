@@ -202,7 +202,7 @@ func (s *Store) unpackLayer(dgest, into string, atomic bool) error {
 		dest = tmpdir
 	}
 	err = archive.Untar(reader, dest, &archive.TarOptions{
-		NoLchown: true,
+		NoLchown: false,
 		InUserNS: true,
 	})
 	if err != nil {
