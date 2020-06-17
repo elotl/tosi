@@ -1,6 +1,6 @@
 GIT_VERSION=$(shell git describe --dirty || echo dev)
 
-LDFLAGS=-ldflags "-X main.VERSION=$(GIT_VERSION)"
+LDFLAGS=-ldflags "-X main.Version=$(GIT_VERSION)"
 
 BINARIES=tosi
 

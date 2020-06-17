@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/elotl/tosi/pkg/registryclient"
@@ -33,7 +34,7 @@ const (
 )
 
 var (
-	VERSION = "unknown"
+	Version = "unknown"
 )
 
 type ImageConfig struct {
@@ -56,12 +57,17 @@ func main() {
 	flag.Parse()
 	flag.Lookup("logtostderr").Value.Set("true")
 
+	progname := "tosi"
+	if len(os.Args) > 0 {
+		progname = filepath.Base(os.Args[0])
+	}
+
 	if *version {
-		fmt.Printf("Tosi version %s\n", VERSION)
+		fmt.Printf("%s version %s\n", progname, Version)
 		os.Exit(0)
 	}
 
-	glog.Infof("Tosi version: %s parameters: %v", VERSION, os.Args)
+	glog.Infof("%s version: %s", progname, Version)
 
 	if *image == "" {
 		glog.Fatalf("Please specify image to pull")
