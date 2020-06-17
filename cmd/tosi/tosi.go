@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	VERSION = "unknown"
+	Version = "unknown"
 )
 
 type ImageConfig struct {
@@ -63,11 +63,11 @@ func main() {
 	}
 
 	if *version {
-		fmt.Printf("%s version %s\n", progname, VERSION)
+		fmt.Printf("%s version %s\n", progname, Version)
 		os.Exit(0)
 	}
 
-	glog.Infof("%s version: %s", progname, VERSION)
+	glog.Infof("%s version: %s", progname, Version)
 
 	if *image == "" {
 		glog.Fatalf("Please specify image to pull")
